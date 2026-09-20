@@ -8,6 +8,7 @@ import unittest
 from pathlib import Path
 
 from scripts.sync_consumer import (
+    LOCK_HEADER,
     load_consumers,
     matrix,
     parse_lock,
@@ -113,9 +114,7 @@ class SyncConsumerTest(unittest.TestCase):
             lock = self.lock_path(root)
             lock.parent.mkdir(parents=True, exist_ok=True)
             lock.write_text(
-                "# SPDX-FileCopyrightText: 2026 LibreCode coop and contributors\n"
-                "# SPDX-License-Identifier: MIT\n\n"
-                f"{old_hash} reuse.yml\n",
+                LOCK_HEADER + "\n" + f"{old_hash} reuse.yml\n",
                 encoding="utf-8",
             )
 
@@ -142,9 +141,7 @@ class SyncConsumerTest(unittest.TestCase):
             lock = self.lock_path(root)
             lock.parent.mkdir(parents=True, exist_ok=True)
             lock.write_text(
-                "# SPDX-FileCopyrightText: 2026 LibreCode coop and contributors\n"
-                "# SPDX-License-Identifier: MIT\n\n"
-                f"{old_hash} reuse.yml\n",
+                LOCK_HEADER + "\n" + f"{old_hash} reuse.yml\n",
                 encoding="utf-8",
             )
 
@@ -171,9 +168,7 @@ class SyncConsumerTest(unittest.TestCase):
             lock = self.lock_path(root)
             lock.parent.mkdir(parents=True, exist_ok=True)
             lock.write_text(
-                "# SPDX-FileCopyrightText: 2026 LibreCode coop and contributors\n"
-                "# SPDX-License-Identifier: MIT\n\n"
-                f"{digest} reuse.yml\n",
+                LOCK_HEADER + "\n" + f"{digest} reuse.yml\n",
                 encoding="utf-8",
             )
 
