@@ -6,6 +6,8 @@
     "lint-php",
     "lint-php-cs",
     "lint-stylelint",
+    "lint-typescript",
+    "node-test",
     "npm-build",
     "openapi",
     "psalm",
