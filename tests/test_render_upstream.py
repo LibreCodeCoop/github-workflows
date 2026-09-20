@@ -44,7 +44,7 @@ class RenderUpstreamTest(unittest.TestCase):
                             "name": "example",
                             "source": "upstream/vendor/example.yml",
                             "patches": ["patches/example.yml.patch"],
-                            "destination": "templates/example.yml",
+                            "destination": "workflow-templates/example.yml",
                         }
                     ]
                 }
@@ -57,7 +57,7 @@ class RenderUpstreamTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root, manifest = self.fixture(directory)
             report = sync(load_templates(manifest), root)
-            rendered = (root / "templates/example.yml").read_text(encoding="utf-8")
+            rendered = (root / "workflow-templates/example.yml").read_text(encoding="utf-8")
             self.assertIn("name: Patched example", rendered)
             self.assertTrue(report["ok"])
             self.assertEqual(report["updated"], 1)
@@ -90,13 +90,13 @@ class RenderUpstreamTest(unittest.TestCase):
                                 "name": "good",
                                 "source": "upstream/vendor/good.yml",
                                 "patches": [],
-                                "destination": "templates/good.yml",
+                                "destination": "workflow-templates/good.yml",
                             },
                             {
                                 "name": "broken",
                                 "source": "upstream/vendor/broken.yml",
                                 "patches": ["patches/broken.yml.patch"],
-                                "destination": "templates/broken.yml",
+                                "destination": "workflow-templates/broken.yml",
                             },
                         ]
                     }
@@ -110,10 +110,10 @@ class RenderUpstreamTest(unittest.TestCase):
             self.assertEqual(report["updated"], 1)
             self.assertEqual(report["failed"], 1)
             self.assertEqual(
-                (root / "templates/good.yml").read_text(encoding="utf-8"),
+                (root / "workflow-templates/good.yml").read_text(encoding="utf-8"),
                 "name: Good\n",
             )
-            self.assertFalse((root / "templates/broken.yml").exists())
+            self.assertFalse((root / "workflow-templates/broken.yml").exists())
             failed = next(
                 item for item in report["templates"] if item["status"] == "failed"
             )
@@ -139,7 +139,7 @@ class RenderUpstreamTest(unittest.TestCase):
     def test_check_detects_rendered_drift(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root, manifest = self.fixture(directory)
-            destination = root / "templates/example.yml"
+            destination = root / "workflow-templates/example.yml"
             destination.parent.mkdir(parents=True)
             destination.write_text("name: stale\n", encoding="utf-8")
 
@@ -157,7 +157,7 @@ class RenderUpstreamTest(unittest.TestCase):
                                 "name": "example",
                                 "source": "../example.yml",
                                 "patches": [],
-                                "destination": "templates/example.yml",
+                                "destination": "workflow-templates/example.yml",
                             }
                         ]
                     }
