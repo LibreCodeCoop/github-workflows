@@ -29,12 +29,52 @@ class SyncWorkflowsActionTest(unittest.TestCase):
         source.mkdir()
         return temporary, source, target
 
-    def test_updates_existing_workflow_and_records_catalog_hash(self) -> None:
+    def test_adopts_matching_existing_workflow(self) -> None:
         temporary, source, target = self.fixture()
         with temporary:
-            (source / "lint.yml").write_text("name: New\n", encoding="utf-8")
-            (target / ".github/workflows/lint.yml").write_text(
-                "name: Old\n", encoding="utf-8"
+            content = "name: Current\n"
+            source_file = source / "lint.yml"
+            source_file.write_text(content, encoding="utf-8")
+            (target / ".github/workflows/lint.yml").write_text(content, encoding="utf-8")
+
+            report = sync_module.sync(
+                source, target, target / ".github/actions-lock.txt"
+            )
+
+            self.assertTrue(report["changed"])
+            self.assertEqual(report["adopted"], ["lint.yml"])
+            self.assertEqual(
+                sync_module.parse_lock(target / ".github/actions-lock.txt")["lint.yml"],
+                sync_module.md5(source_file),
+            )
+
+    def test_refuses_initial_local_divergence(self) -> None:
+        temporary, source, target = self.fixture()
+        with temporary:
+            (source / "lint.yml").write_text("name: Catalog\n", encoding="utf-8")
+            target_file = target / ".github/workflows/lint.yml"
+            target_file.write_text("name: Local\n", encoding="utf-8")
+
+            report = sync_module.sync(
+                source, target, target / ".github/actions-lock.txt"
+            )
+
+            self.assertFalse(report["changed"])
+            self.assertTrue(report["blocked"])
+            self.assertEqual(report["diverged"], ["lint.yml"])
+            self.assertEqual(target_file.read_text(encoding="utf-8"), "name: Local\n")
+            self.assertFalse((target / ".github/actions-lock.txt").exists())
+
+    def test_updates_managed_workflow_and_records_catalog_hash(self) -> None:
+        temporary, source, target = self.fixture()
+        with temporary:
+            source_file = source / "lint.yml"
+            source_file.write_text("name: New\n", encoding="utf-8")
+            target_file = target / ".github/workflows/lint.yml"
+            target_file.write_text("name: Old\n", encoding="utf-8")
+            old_hash = hashlib.md5(b"name: Old\n", usedforsecurity=False).hexdigest()
+            sync_module.write_lock(
+                target / ".github/actions-lock.txt", {"lint.yml": old_hash}
             )
 
             report = sync_module.sync(
@@ -42,17 +82,11 @@ class SyncWorkflowsActionTest(unittest.TestCase):
             )
 
             self.assertTrue(report["changed"])
-            self.assertFalse(report["patch_failed"])
-            self.assertEqual(
-                (target / ".github/workflows/lint.yml").read_text(encoding="utf-8"),
-                "name: New\n",
-            )
-            expected = hashlib.md5(
-                b"name: New\n", usedforsecurity=False
-            ).hexdigest()
+            self.assertEqual(report["updated"], ["lint.yml"])
+            self.assertEqual(target_file.read_text(encoding="utf-8"), "name: New\n")
             self.assertEqual(
                 sync_module.parse_lock(target / ".github/actions-lock.txt")["lint.yml"],
-                expected,
+                sync_module.md5(source_file),
             )
 
     def test_skips_workflow_not_installed_in_consumer(self) -> None:
@@ -96,7 +130,9 @@ class SyncWorkflowsActionTest(unittest.TestCase):
                 "branches:\n  - default\n", encoding="utf-8"
             )
             target_file = target / ".github/workflows/sync.yml"
-            target_file.write_text("old\n", encoding="utf-8")
+            target_file.write_text(
+                "branches:\n  - default\n  - stable32\n", encoding="utf-8"
+            )
             patch_file = target / ".github/workflows/sync.yml.patch"
             patch_file.write_text(
                 "--- a/.github/workflows/sync.yml\n"
@@ -113,6 +149,7 @@ class SyncWorkflowsActionTest(unittest.TestCase):
             )
 
             self.assertFalse(report["patch_failed"])
+            self.assertEqual(report["adopted"], ["sync.yml"])
             self.assertEqual(
                 target_file.read_text(encoding="utf-8"),
                 "branches:\n  - default\n  - stable32\n",
@@ -165,7 +202,7 @@ class SyncWorkflowsActionTest(unittest.TestCase):
         self.assertIn("- Updated: 1", summary)
         self.assertIn("- Unchanged: 1", summary)
         self.assertIn("- Skipped: 1", summary)
-        self.assertIn("- Patch failures: 1", summary)
+        self.assertIn("- Failed: 1", summary)
         self.assertIn("- a.yml: Patch failed", summary)
 
 
