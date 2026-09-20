@@ -7,69 +7,103 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 
 ## Responsibility boundary
 
-`github-workflows` is the source of truth for reusable CI, imported workflow adaptations, generated workflow templates and release automation.
+`github-workflows` is the source of truth for imported workflow adaptations,
+generated organization templates and tested helper Actions.
 
-`LibreCodeCoop/.github` is the organization-facing catalog. Generated workflow templates can be published there so developers can discover them through GitHub's **Actions → New workflow** experience. The catalog is a distribution target, not the editing source.
+`LibreCodeCoop/.github` is the organization-facing catalog. It is a distribution
+target, not an editing source.
 
-Repository rulesets remain the responsibility of `LibreCodeCoop/github-governance`.
+Repository rulesets remain the responsibility of
+`LibreCodeCoop/github-governance`.
 
 Consumer repositories own:
 
+- which catalog workflows they install;
+- consumer-specific workflow patches;
 - credentials and protected environments;
-- product-specific configuration;
-- the decision to invoke a mutating workflow;
-- immutable pins to released workflow revisions.
+- branch policy;
+- the final review and merge of workflow-update pull requests.
 
 ## Upstream workflow pipeline
-
-An imported workflow follows this pipeline:
 
 ```text
 immutable upstream commit
         ↓
-source URL + SHA-256 in manifest
+source URL + SHA-256
         ↓
-deterministic fetch
+vendored upstream file
         ↓
-hash verification
+explicit LibreCode patch
         ↓
-explicit downstream patches
+generated workflow template
         ↓
-generated `workflow-templates/` artifact
+tests + actionlint + zizmor + workflow policy
         ↓
-tests + actionlint + zizmor
-        ↓
-publish catalog copy to `LibreCodeCoop/.github`
-        ↓
-versioned release / consumer update
+LibreCodeCoop/.github catalog
 ```
 
 The source manifest is authoritative. A network response that does not match the
 recorded SHA-256 fails closed.
 
-## Generated files
+When a refresh resolves a newer upstream commit but the file bytes are unchanged,
+the existing immutable pin is preserved to avoid meaningless pin-only pull requests.
 
-Generated templates must not be edited directly. Changes should come from:
+## Consumer update pipeline
 
-1. an upstream source revision change; or
-2. an explicit downstream patch.
+```text
+LibreCodeCoop/.github catalog
+        ↓
+consumer sync-workflow-templates.yml
+        ↓
+LibreCodeCoop/github-workflows/actions/sync-workflows
+        ↓
+compare .github/actions-lock.txt
+        ↓
+copy changed catalog workflow
+        ↓
+apply optional consumer-local <workflow>.patch
+        ↓
+reviewable consumer pull request
+```
 
-CI should detect when regenerated output differs from committed output.
+Only workflows already installed in the consumer are managed. The sync Action does
+not maintain a central consumer registry.
 
-## Release automation
+The lock records the catalog version before consumer-local patching. If a local file
+cannot be explained by the catalog plus its local patch, synchronization stops rather
+than overwriting the divergence.
 
-Release automation is split into two stages:
+A local patch that no longer applies is surfaced for human intervention.
 
-- **plan:** non-mutating validation and release proposal;
-- **apply:** explicit mutation and publication.
+## Organization patches vs consumer patches
 
-Credentials remain in the consumer repository or protected environment.
+Organization-level differences from Nextcloud belong in
+`patches/nextcloud/*.patch` and should remain minimal.
 
-## Developer experience
+Consumer-specific differences belong beside the installed workflow:
 
-The distribution model has two complementary entry points:
+```text
+.github/workflows/example.yml
+.github/workflows/example.yml.patch
+```
 
-1. **Discovery / first install:** `LibreCodeCoop/.github/workflow-templates/` provides the GitHub-native template cards, metadata and optional icons.
-2. **Ongoing updates:** consumer repositories receive reviewable update pull requests generated from the tested templates in this repository.
+Do not move a consumer-only branch list, product dependency or credential assumption
+into the organization template.
 
-When a workflow can be expressed as a thin caller of a reusable workflow, prefer that model because fixes remain centralized. When GitHub Actions semantics require a full installed workflow, publish the generated workflow template and keep its downstream differences as explicit patches here.
+## Distribution decision
+
+The default model is a materialized workflow template because it remains visible,
+reviewable and native to the consumer repository.
+
+A custom Action is appropriate when substantial deterministic logic can be extracted
+from YAML and tested independently, as with `actions/sync-workflows`.
+
+Reusable workflows are not the default distribution model. Introduce one only when
+GitHub Actions semantics clearly benefit from centralized execution and the consumer
+still retains an explicit, reviewable interface.
+
+## Credential-sensitive automation
+
+Catalog publication does not imply that every workflow is safe to install everywhere.
+Dependency approval, auto-merge and release workflows follow the documented security
+and credential policies and may intentionally remain repository-local.

@@ -5,40 +5,49 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 
 # GitHub Workflows
 
-Reusable, testable GitHub workflows for organizations that want consistent CI
-and release automation without copying opaque YAML between repositories.
+Managed, testable GitHub workflow templates and supporting Actions for organizations
+that want consistent CI without copying opaque YAML between repositories.
 
-This project keeps reusable workflow logic independent from
+This project keeps workflow distribution independent from
 [GitHub Governance](https://github.com/LibreCodeCoop/github-governance):
-governance manages repository rulesets, while this repository manages reusable
-workflows and reproducible upstream workflow adaptations.
+governance manages repository rulesets, while this repository manages workflow
+sources, adaptations, tests and publication.
 
 ## Why use it
 
-- **Reusable automation:** consume shared workflows instead of maintaining copies.
 - **Reproducible upstream imports:** source files are tied to immutable upstream commits and SHA-256 hashes.
-- **Reviewable downstream changes:** local adaptations are explicit and testable.
-- **Security-first defaults:** third-party Actions are pinned to immutable commit SHAs.
-- **Versioned consumption:** releases are referenced by immutable SHA with a human-readable version comment.
+- **Reviewable downstream changes:** LibreCode adaptations are explicit patches.
+- **Materialized consumer workflows:** repositories keep normal local GitHub workflows instead of opaque remote callers.
+- **Automated updates:** consumers receive reviewable pull requests from the organization catalog.
+- **Local customization:** consumer-specific differences live in `.github/workflows/<workflow>.patch`.
+- **Security-first defaults:** external Actions are pinned and checked by policy CI.
 
-## Current scope
+## Distribution model
 
-The first target is reusable automation for Nextcloud applications, with
-LibreSign as the first production consumer.
+`LibreCodeCoop/github-workflows` is the source of truth.
 
-The repository is intentionally product-agnostic. LibreSign and Nextcloud are
-reference consumers and upstream sources, not hard-coded engine concepts.
+`LibreCodeCoop/.github` is the organization catalog used by GitHub's
+**Actions → New workflow** UI.
+
+Consumer repositories install full workflow files. Their local
+`sync-workflow-templates.yml` periodically invokes
+`actions/sync-workflows`, which:
+
+- updates workflows already installed in the repository;
+- applies local workflow patches;
+- records catalog versions in `.github/actions-lock.txt`;
+- refuses to overwrite unexplained local divergence;
+- opens reviewable update pull requests through the caller workflow.
 
 ## Repository layout
 
-- `workflow-templates/` — generated GitHub-native organization workflow templates ready for catalog publication.
-- `upstream/` — immutable source manifests.
-- `patches/` — explicit downstream adaptations.
-- `scripts/` — deterministic synchronization/check tooling.
-- `tests/` — tests for synchronization and template behavior.
-- `docs/` — architecture, adoption and security guidance.
-
-`LibreCodeCoop/.github` is the organization catalog used by GitHub's **Actions → New workflow** UI. This repository remains the source of truth; catalog publication should mirror generated templates rather than make `.github` a second editing source.
+- `workflow-templates/` — generated organization workflow templates.
+- `actions/` — tested Actions used by the workflow platform.
+- `upstream/` — immutable source manifests and vendored upstream files.
+- `patches/` — explicit organization-level adaptations.
+- `scripts/` — deterministic synchronization and policy tooling.
+- `tests/` — tests for synchronization, rendering and policy behavior.
+- `docs/` — architecture, security and adoption decisions.
 
 ## Development
 
@@ -47,10 +56,14 @@ Run:
 ```bash
 python3 -m unittest discover -s tests -p 'test_*.py'
 python3 scripts/sync_upstream.py check upstream/sources.json
+python3 scripts/render_upstream.py check upstream/templates.json
+python3 scripts/check_workflow_policy.py
 ```
 
-See [Architecture](docs/architecture.md) and
-[Upstream workflow model](docs/upstream-workflows.md).
+See [Architecture](docs/architecture.md),
+[Upstream workflow model](docs/upstream-workflows.md),
+[GitHub Actions security policy](docs/security-policy.md) and
+[Dependency update policy](docs/dependency-update-policy.md).
 
 ## Security
 
