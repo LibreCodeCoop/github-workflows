@@ -10,6 +10,7 @@ import json
 import os
 import shutil
 import subprocess
+import tempfile
 from pathlib import Path
 
 LOCK_HEADER = (
@@ -81,6 +82,27 @@ def apply_patch(target_root: Path, target_file: Path) -> tuple[bool, str]:
     return False, f"Patch failed: {relative_patch}\n{output}"
 
 
+def render_expected(
+    source_file: Path,
+    target_root: Path,
+    target_file: Path,
+) -> tuple[bytes | None, bool, str]:
+    patch_file = Path(f"{target_file}.patch")
+    if not patch_file.is_file():
+        return source_file.read_bytes(), True, ""
+
+    with tempfile.TemporaryDirectory() as directory:
+        candidate_root = Path(directory)
+        candidate_file = candidate_root / ".github/workflows" / source_file.name
+        candidate_file.parent.mkdir(parents=True)
+        shutil.copyfile(source_file, candidate_file)
+        shutil.copyfile(patch_file, Path(f"{candidate_file}.patch"))
+        patch_ok, patch_message = apply_patch(candidate_root, candidate_file)
+        if not patch_ok:
+            return None, False, patch_message
+        return candidate_file.read_bytes(), True, patch_message
+
+
 def workflow_files(source: Path) -> list[Path]:
     return sorted(
         path
@@ -101,23 +123,76 @@ def sync(
 
     entries = parse_lock(lock_path)
     updated: list[str] = []
+    adopted: list[str] = []
     unchanged: list[str] = []
     skipped: list[str] = []
     failed: list[str] = []
+    diverged: list[str] = []
     details: list[str] = []
 
-    for source_file in workflow_files(source):
-        name = source_file.name
+    source_by_name = {path.name: path for path in workflow_files(source)}
+
+    for name in sorted(entries):
+        if name in source_by_name:
+            target_file = target / ".github/workflows" / name
+            if not target_file.is_file():
+                failed.append(name)
+                diverged.append(name)
+                details.append(
+                    f"- {name}: managed workflow is missing from the consumer repository"
+                )
+
+    for name, source_file in source_by_name.items():
         target_file = target / ".github/workflows" / name
 
         if not target_file.is_file():
-            skipped.append(name)
+            if name not in entries:
+                skipped.append(name)
             continue
 
         new_version = md5(source_file)
         locked_version = entries.get(name, "")
 
+        if not locked_version:
+            expected, patch_ok, patch_message = render_expected(
+                source_file, target, target_file
+            )
+            if not patch_ok:
+                failed.append(name)
+                details.append(f"- {name}: {patch_message}")
+                continue
+            if target_file.read_bytes() != expected:
+                failed.append(name)
+                diverged.append(name)
+                details.append(
+                    f"- {name}: local workflow differs from catalog + local patch; "
+                    "add or update a .patch file before adopting it"
+                )
+                continue
+
+            entries[name] = new_version
+            adopted.append(name)
+            if patch_message:
+                details.append(f"- {name}: adopted; {patch_message}")
+            continue
+
         if locked_version == new_version:
+            expected, patch_ok, patch_message = render_expected(
+                source_file, target, target_file
+            )
+            if not patch_ok:
+                failed.append(name)
+                details.append(f"- {name}: {patch_message}")
+                continue
+            if target_file.read_bytes() != expected:
+                failed.append(name)
+                diverged.append(name)
+                details.append(
+                    f"- {name}: local workflow diverged from the locked catalog "
+                    "version and local patch"
+                )
+                continue
+
             unchanged.append(name)
             continue
 
@@ -131,16 +206,20 @@ def sync(
         if not patch_ok:
             failed.append(name)
 
-    if updated or not lock_path.is_file():
+    lock_changed = bool(updated or adopted)
+    if lock_changed:
         write_lock(lock_path, entries)
 
     return {
-        "changed": bool(updated),
-        "patch_failed": bool(failed),
+        "changed": lock_changed,
+        "patch_failed": bool(set(failed) - set(diverged)),
+        "blocked": bool(diverged),
         "updated": updated,
+        "adopted": adopted,
         "unchanged": unchanged,
         "skipped": skipped,
         "failed": failed,
+        "diverged": diverged,
         "details": details,
     }
 
@@ -150,9 +229,10 @@ def render_summary(report: dict[str, object]) -> str:
         "## Workflow synchronization",
         "",
         f"- Updated: {len(report['updated'])}",
+        f"- Adopted: {len(report['adopted'])}",
         f"- Unchanged: {len(report['unchanged'])}",
         f"- Skipped: {len(report['skipped'])}",
-        f"- Patch failures: {len(report['failed'])}",
+        f"- Failed: {len(report['failed'])}",
     ]
 
     details = report["details"]
@@ -192,13 +272,14 @@ def main() -> int:
 
         write_output("changed", str(report["changed"]).lower())
         write_output("patch_failed", str(report["patch_failed"]).lower())
+        write_output("blocked", str(report["blocked"]).lower())
         write_output("updated", json.dumps(report["updated"], separators=(",", ":")))
         write_output("failed", json.dumps(report["failed"], separators=(",", ":")))
         write_output("summary", summary)
         write_output("summary_file", str(summary_path))
 
         print(json.dumps(report, indent=2, sort_keys=True))
-        return 0
+        return 1 if report["blocked"] else 0
     except (OSError, ValueError) as error:
         parser.error(str(error))
 
