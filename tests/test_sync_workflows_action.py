@@ -196,6 +196,43 @@ class SyncWorkflowsActionTest(unittest.TestCase):
                 sync_module.md5(source_file),
             )
 
+    def test_removes_lock_entries_missing_from_catalog(self) -> None:
+        temporary, source, target = self.fixture()
+        with temporary:
+            current = source / "lint.yml"
+            current.write_text("name: Current\n", encoding="utf-8")
+            (target / ".github/workflows/lint.yml").write_text(
+                "name: Current\n", encoding="utf-8"
+            )
+            stale = target / ".github/workflows/old.yml"
+            stale.write_text("name: Local old workflow\n", encoding="utf-8")
+
+            sync_module.write_lock(
+                target / ".github/actions-lock.txt",
+                {
+                    "lint.yml": sync_module.md5(current),
+                    "old.yml": hashlib.md5(
+                        b"name: Old catalog workflow\n",
+                        usedforsecurity=False,
+                    ).hexdigest(),
+                },
+            )
+
+            report = sync_module.sync(
+                source, target, target / ".github/actions-lock.txt"
+            )
+
+            self.assertTrue(report["changed"])
+            self.assertEqual(report["removed_from_lock"], ["old.yml"])
+            self.assertEqual(
+                sync_module.parse_lock(target / ".github/actions-lock.txt"),
+                {"lint.yml": sync_module.md5(current)},
+            )
+            self.assertEqual(
+                stale.read_text(encoding="utf-8"),
+                "name: Local old workflow\n",
+            )
+
     def test_writes_single_line_github_output(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / "output"
