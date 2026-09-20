@@ -1,13 +1,20 @@
---- appstore-build-publish.yml
-+++ appstore-build-publish.yml
-@@ -18,8 +18,8 @@ jobs:
+--- upstream/vendor/nextcloud/appstore-build-publish.yml
++++ workflow-templates/appstore-build-publish.yml
+@@ -1,6 +1,6 @@
+ # This workflow is provided via the organization template repository
+ #
+-# https://github.com/nextcloud/.github
++# https://github.com/LibreCodeCoop/.github
+ # https://docs.github.com/en/actions/learn-github-actions/sharing-workflows-with-your-organization
+ #
+ # SPDX-FileCopyrightText: 2021-2024 Nextcloud GmbH and Nextcloud contributors
+@@ -19,9 +19,6 @@
    build_and_publish:
      runs-on: ubuntu-latest
  
 -    # Only allowed to be run on nextcloud-releases repositories
 -    if: ${{ github.repository_owner == 'nextcloud-releases' }}
-+    # Downstream consumers publish from their own repositories.
-+    # Repository policy is enforced by the consumer.
- 
+-
      steps:
        - name: Check actor permission
+         uses: skjnldsv/check-actor-permission@69e92a3c4711150929bca9fcf34448c5bf5526e7 # v3.0

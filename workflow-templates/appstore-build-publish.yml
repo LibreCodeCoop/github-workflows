@@ -1,6 +1,6 @@
 # This workflow is provided via the organization template repository
 #
-# https://github.com/nextcloud/.github
+# https://github.com/LibreCodeCoop/.github
 # https://docs.github.com/en/actions/learn-github-actions/sharing-workflows-with-your-organization
 #
 # SPDX-FileCopyrightText: 2021-2024 Nextcloud GmbH and Nextcloud contributors
@@ -18,9 +18,6 @@ permissions:
 jobs:
   build_and_publish:
     runs-on: ubuntu-latest
-
-    # Downstream consumers publish from their own repositories.
-    # Repository policy is enforced by the consumer.
 
     steps:
       - name: Check actor permission
