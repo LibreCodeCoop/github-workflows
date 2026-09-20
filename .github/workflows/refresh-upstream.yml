@@ -47,70 +47,10 @@ jobs:
 
       - name: Build pull request report
         if: steps.refresh.outcome == 'success'
-        run: |
-          python3 - <<'PY'
-          import json
-          from pathlib import Path
-
-          report_path = Path("render-report.json")
-          body_path = Path("refresh-upstream-pr.md")
-
-          lines = [
-              "Automated refresh of tracked upstream workflow sources.",
-              "",
-              "The source URLs in this change are pinned to immutable commit SHAs "
-              "and SHA-256 hashes.",
-              "",
-          ]
-
-          if not report_path.is_file():
-              lines.extend([
-                  "## Patch status",
-                  "",
-                  "No patch report was produced. Review the workflow run before merging.",
-              ])
-          else:
-              report = json.loads(report_path.read_text(encoding="utf-8"))
-              lines.extend([
-                  "## Patch status",
-                  "",
-                  f"- Updated templates: {report['updated']}",
-                  f"- Unchanged templates: {report['unchanged']}",
-                  f"- Failed templates: {report['failed']}",
-                  "",
-              ])
-
-              for item in report["templates"]:
-                  status = item["status"]
-                  icon = {"updated": "✅", "unchanged": "➖", "failed": "❌"}[status]
-                  lines.append(f"### {icon} {item['name']} — {status}")
-                  lines.append("")
-                  lines.append(f"Destination: {item['destination']}")
-                  if item["patches"]:
-                      lines.append("")
-                      lines.append("Patches:")
-                      for patch in item["patches"]:
-                          lines.append(f"- {patch}")
-                  if status == "failed":
-                      lines.extend([
-                          "",
-                          "Patch application failed:",
-                          "",
-                          "~~~text",
-                          str(item["error"]),
-                          "~~~",
-                          "",
-                          "The vendored upstream source was updated, but the generated "
-                          "template was left unchanged and needs manual patch adjustment.",
-                      ])
-                  lines.append("")
-
-          lines.extend([
-              "Review upstream changes and downstream patches before merging.",
-              "",
-          ])
-          body_path.write_text("\n".join(lines), encoding="utf-8")
-          PY
+        run: >-
+          python3 scripts/render_upstream.py pr-body
+          --report render-report.json
+          --output refresh-upstream-pr.md
 
       - name: Create update pull request
         id: pull-request
