@@ -26,5 +26,8 @@ jobs:
       - name: Run unit tests
         run: python3 -m unittest discover -s tests -p 'test_*.py'
 
-      - name: Verify generated templates
+      - name: Verify vendored upstream sources
         run: python3 scripts/sync_upstream.py check upstream/sources.json
+
+      - name: Verify rendered upstream templates
+        run: python3 scripts/render_upstream.py check upstream/templates.json
