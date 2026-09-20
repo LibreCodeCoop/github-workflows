@@ -9,6 +9,78 @@
       "destination": "workflow-templates/appstore-build-publish.yml"
     },
     {
+      "name": "nextcloud-block-unconventional-commits",
+      "source": "upstream/vendor/nextcloud/block-unconventional-commits.yml",
+      "patches": [
+        "patches/nextcloud/block-unconventional-commits.yml.patch"
+      ],
+      "destination": ".github/workflows/block-unconventional-commits.yml"
+    },
+    {
+      "name": "nextcloud-lint-eslint",
+      "source": "upstream/vendor/nextcloud/lint-eslint.yml",
+      "patches": [
+        "patches/nextcloud/lint-eslint.yml.patch"
+      ],
+      "destination": ".github/workflows/lint-eslint.yml"
+    },
+    {
+      "name": "nextcloud-lint-info-xml",
+      "source": "upstream/vendor/nextcloud/lint-info-xml.yml",
+      "patches": [
+        "patches/nextcloud/lint-info-xml.yml.patch"
+      ],
+      "destination": ".github/workflows/lint-info-xml.yml"
+    },
+    {
+      "name": "nextcloud-lint-php",
+      "source": "upstream/vendor/nextcloud/lint-php.yml",
+      "patches": [
+        "patches/nextcloud/lint-php.yml.patch"
+      ],
+      "destination": ".github/workflows/lint-php.yml"
+    },
+    {
+      "name": "nextcloud-lint-php-cs",
+      "source": "upstream/vendor/nextcloud/lint-php-cs.yml",
+      "patches": [
+        "patches/nextcloud/lint-php-cs.yml.patch"
+      ],
+      "destination": ".github/workflows/lint-php-cs.yml"
+    },
+    {
+      "name": "nextcloud-lint-stylelint",
+      "source": "upstream/vendor/nextcloud/lint-stylelint.yml",
+      "patches": [
+        "patches/nextcloud/lint-stylelint.yml.patch"
+      ],
+      "destination": ".github/workflows/lint-stylelint.yml"
+    },
+    {
+      "name": "nextcloud-npm-build",
+      "source": "upstream/vendor/nextcloud/npm-build.yml",
+      "patches": [
+        "patches/nextcloud/npm-build.yml.patch"
+      ],
+      "destination": ".github/workflows/npm-build.yml"
+    },
+    {
+      "name": "nextcloud-openapi",
+      "source": "upstream/vendor/nextcloud/openapi.yml",
+      "patches": [
+        "patches/nextcloud/openapi.yml.patch"
+      ],
+      "destination": ".github/workflows/openapi.yml"
+    },
+    {
+      "name": "nextcloud-psalm",
+      "source": "upstream/vendor/nextcloud/psalm.yml",
+      "patches": [
+        "patches/nextcloud/psalm.yml.patch"
+      ],
+      "destination": ".github/workflows/psalm.yml"
+    },
+    {
       "name": "nextcloud-reuse",
       "source": "upstream/vendor/nextcloud/reuse.yml",
       "patches": [
