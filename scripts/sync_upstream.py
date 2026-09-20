@@ -130,8 +130,9 @@ def refresh(manifest_path: Path, root: Path, token: str | None = None) -> None:
         content = _download(url)
         digest = hashlib.sha256(content).hexdigest()
 
-        raw["url"] = url
-        raw["sha256"] = digest
+        if digest != raw["sha256"]:
+            raw["url"] = url
+            raw["sha256"] = digest
 
         destination = _safe_destination(root, Path(str(raw["destination"])))
         destination.parent.mkdir(parents=True, exist_ok=True)
