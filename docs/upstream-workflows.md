@@ -21,7 +21,7 @@ file is accepted.
 
 Rendered downstream templates are declared separately in
 `upstream/templates.json`. Each template points to one vendored source, an
-ordered patch list and a generated destination under `templates/`.
+ordered patch list and a generated workflow under GitHub's native `workflow-templates/` directory. Template metadata (`*.properties.json`) is maintained locally so LibreCode can provide its own names, descriptions, categories and icons without inheriting upstream branding.
 
 ## Commands
 
