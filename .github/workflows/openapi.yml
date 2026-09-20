@@ -1,0 +1,91 @@
+# SPDX-FileCopyrightText: 2024 Nextcloud GmbH and Nextcloud contributors
+# SPDX-FileCopyrightText: 2024 Arthur Schiwon <blizzz@arthur-schiwon.de>
+# SPDX-FileCopyrightText: 2026 LibreCode coop and contributors
+# SPDX-License-Identifier: MIT
+
+name: OpenAPI
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: openapi-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  openapi:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Get php version
+        id: php_versions
+        uses: nextcloud-libraries/nextcloud-version-matrix@cd0211ffcef1065e2020cd579e4843b8746e7a58 # v1.3.3
+
+      - name: Set up php
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+        with:
+          php-version: ${{ steps.php_versions.outputs.php-available }}
+          extensions: xml
+          coverage: none
+          ini-file: development
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Check TypeScript OpenAPI types
+        id: check_typescript_openapi
+        uses: andstor/file-existence-action@558493d6c74bf472d87c84eab196434afc2fa029 # v3.1.0
+        with:
+          files: "src/types/openapi/openapi*.ts"
+
+      - name: Read package.json engines
+        if: steps.check_typescript_openapi.outputs.files_exists == 'true'
+        id: node_versions
+        continue-on-error: true
+        uses: skjnldsv/read-package-engines-version-actions@06d6baf7d8f41934ab630e97d9e6c0bc9c9ac5e4 # v3
+        with:
+          fallbackNode: '^24'
+          fallbackNpm: '^11.3'
+
+      - name: Set up node ${{ steps.node_versions.outputs.nodeVersion }}
+        if: steps.node_versions.outputs.nodeVersion
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ steps.node_versions.outputs.nodeVersion }}
+
+      - name: Show npm version
+        if: steps.node_versions.outputs.nodeVersion
+        run: npm --version
+
+      - name: Install npm dependencies
+        if: steps.node_versions.outputs.nodeVersion
+        env:
+          CYPRESS_INSTALL_BINARY: 0
+          PUPPETEER_SKIP_DOWNLOAD: true
+        run: npm ci
+
+      - name: Install composer dependencies
+        uses: ramsey/composer-install@65e4f84970763564f46a70b8a54b90d033b3bdda # 4.0.0
+
+      - name: Regenerate OpenAPI
+        run: composer run openapi
+
+      - name: Check generated OpenAPI files
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            echo 'Please run "composer run openapi" and commit the generated OpenAPI JSON and TypeScript files.'
+            exit 1
+          fi
+
+      - name: Show changes on failure
+        if: failure()
+        run: |
+          git status
+          git --no-pager diff
+          exit 1
