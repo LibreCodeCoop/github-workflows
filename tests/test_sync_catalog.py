@@ -104,6 +104,26 @@ class SyncCatalogTest(unittest.TestCase):
             )
             collect_publishable(source)
 
+    def test_invalid_source_does_not_partially_modify_catalog(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source"
+            target = root / "target"
+            self.write_template(source)
+            target.mkdir()
+            existing = target / "reuse.yml"
+            existing.write_text("name: Published\n", encoding="utf-8")
+
+            (source / "reuse.properties.json").unlink()
+
+            with self.assertRaisesRegex(ValueError, "missing template metadata"):
+                sync_catalog(source, target)
+
+            self.assertEqual(
+                existing.read_text(encoding="utf-8"),
+                "name: Published\n",
+            )
+
     def test_check_detects_drift(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
