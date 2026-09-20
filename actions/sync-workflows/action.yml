@@ -20,7 +20,7 @@ outputs:
   changed:
     description: Whether at least one workflow was updated.
     value: ${{ steps.sync.outputs.changed }}
-  patch-failed:
+  patch_failed:
     description: Whether at least one local workflow patch failed to apply.
     value: ${{ steps.sync.outputs.patch_failed }}
   updated:
@@ -29,7 +29,10 @@ outputs:
   failed:
     description: JSON array of workflows whose local patch failed.
     value: ${{ steps.sync.outputs.failed }}
-  summary-file:
+  summary:
+    description: Markdown summary for the pull request body.
+    value: ${{ steps.sync.outputs.summary }}
+  summary_file:
     description: Path to the generated Markdown summary file.
     value: ${{ steps.sync.outputs.summary_file }}
 
