@@ -7,7 +7,7 @@ from dataclasses import replace
 from pathlib import Path
 from unittest.mock import patch
 
-from scripts.release_plan import PlanInput, build_plan
+from scripts.release_plan import PlanInput, build_plan, parse_blocker_queries
 
 
 class ReleasePlanTest(unittest.TestCase):
@@ -80,6 +80,24 @@ class ReleasePlanTest(unittest.TestCase):
                 blocker_queries=('label:"backport pending"',),
             )
             self.assertFalse(build_plan(config, token="token")["ready"])
+
+    def test_parses_blocker_queries_json(self) -> None:
+        self.assertEqual(
+            parse_blocker_queries('["label:backport", "is:pr label:blocker"]'),
+            ("label:backport", "is:pr label:blocker"),
+        )
+
+    def test_rejects_non_array_blocker_queries_json(self) -> None:
+        with self.assertRaisesRegex(ValueError, "JSON array of strings"):
+            parse_blocker_queries('{"query": "label:backport"}')
+
+    def test_rejects_non_string_blocker_query(self) -> None:
+        with self.assertRaisesRegex(ValueError, "JSON array of strings"):
+            parse_blocker_queries('["label:backport", 42]')
+
+    def test_rejects_invalid_blocker_queries_json(self) -> None:
+        with self.assertRaisesRegex(ValueError, "valid JSON"):
+            parse_blocker_queries('["unterminated"')
 
 
 if __name__ == "__main__":
