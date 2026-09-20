@@ -103,6 +103,22 @@
         "patches/nextcloud/reuse.yml.patch"
       ],
       "destination": ".github/workflows/reuse.yml"
+    },
+    {
+      "name": "nextcloud-lint-eslint-template",
+      "source": "upstream/vendor/nextcloud/lint-eslint.yml",
+      "patches": [
+        "patches/nextcloud/lint-eslint-template.yml.patch"
+      ],
+      "destination": "workflow-templates/lint-eslint.yml"
+    },
+    {
+      "name": "nextcloud-sync-workflow-templates",
+      "source": "upstream/vendor/nextcloud/sync-workflow-templates.yml",
+      "patches": [
+        "patches/nextcloud/sync-workflow-templates.yml.patch"
+      ],
+      "destination": "workflow-templates/sync-workflow-templates.yml"
     }
   ]
 }
