@@ -175,6 +175,12 @@ class SyncWorkflowsActionTest(unittest.TestCase):
                 "+name: Patched\n",
                 encoding="utf-8",
             )
+            old_hash = hashlib.md5(
+                b"name: Old\n", usedforsecurity=False
+            ).hexdigest()
+            sync_module.write_lock(
+                target / ".github/actions-lock.txt", {"sync.yml": old_hash}
+            )
 
             report = sync_module.sync(
                 source, target, target / ".github/actions-lock.txt"
@@ -192,6 +198,7 @@ class SyncWorkflowsActionTest(unittest.TestCase):
         summary = sync_module.render_summary(
             {
                 "updated": ["a.yml"],
+                "adopted": [],
                 "unchanged": ["b.yml"],
                 "skipped": ["c.yml"],
                 "failed": ["a.yml"],
