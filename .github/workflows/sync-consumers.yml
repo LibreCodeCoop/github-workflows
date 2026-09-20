@@ -1,0 +1,97 @@
+# SPDX-FileCopyrightText: 2026 LibreCode coop and contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+name: Sync consumer workflows
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - 'workflow-templates/**'
+      - 'consumers.json'
+      - 'scripts/sync_consumer.py'
+      - '.github/workflows/sync-consumers.yml'
+  schedule:
+    - cron: '41 4 * * 0'
+
+permissions:
+  contents: read
+
+jobs:
+  consumers:
+    name: Build consumer matrix
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - name: Checkout workflow source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Build matrix
+        id: matrix
+        run: echo "matrix=$(python3 scripts/sync_consumer.py matrix consumers.json)" >> "$GITHUB_OUTPUT"
+
+  sync:
+    name: Sync ${{ matrix.repository }}
+    needs: consumers
+    if: ${{ needs.consumers.outputs.matrix != '{"include":[]}' }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.consumers.outputs.matrix) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout workflow source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          path: source
+
+      - name: Checkout consumer
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ matrix.repository }}
+          token: ${{ secrets.WORKFLOW_UPDATE_TOKEN }}
+          persist-credentials: false
+          path: target
+
+      - name: Synchronize managed workflows
+        id: sync
+        continue-on-error: true
+        working-directory: source
+        run: >-
+          python3 scripts/sync_consumer.py sync
+          consumers.json
+          "${{ matrix.repository }}"
+          workflow-templates
+          ../target
+          --report "../consumer-sync-report.json"
+          --body "../consumer-sync-pr.md"
+
+      - name: Create consumer update pull request
+        if: ${{ steps.sync.outcome == 'success' }}
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
+        with:
+          token: ${{ secrets.WORKFLOW_UPDATE_TOKEN }}
+          path: target
+          commit-message: 'ci: sync LibreCode workflow templates'
+          committer: GitHub <noreply@github.com>
+          author: github-workflows bot <noreply@github.com>
+          signoff: true
+          branch: 'automated/sync-librcode-workflows'
+          delete-branch: true
+          title: 'ci: sync LibreCode workflow templates'
+          body-path: consumer-sync-pr.md
+          add-paths: |
+            .github/workflows/**
+            .github/librecode-workflows.lock
+
+      - name: Fail on consumer divergence
+        if: ${{ steps.sync.outcome == 'failure' }}
+        run: |
+          cat consumer-sync-pr.md
+          exit 1
