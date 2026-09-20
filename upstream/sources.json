@@ -23,8 +23,8 @@
       "repository": "nextcloud/.github",
       "ref": "master",
       "path": "workflow-templates/lint-eslint.yml",
-      "url": "https://raw.githubusercontent.com/nextcloud/.github/74cadeba1fd707e6a7ae193a8659e6834d6dc2c7/workflow-templates/lint-eslint.yml",
-      "sha256": "f26cdca597f39732ebb42adba611633ba2c1249d285366bb0d3281f85df5f8dd",
+      "url": "https://raw.githubusercontent.com/nextcloud/.github/98dc00f32e5c4b85361a06a40c7f8d7d1c0a38f3/workflow-templates/lint-eslint.yml",
+      "sha256": "5e2d98080b19f20523cbee2c64571fd86f347394fa3a4980c99d04054cd702d3",
       "destination": "upstream/vendor/nextcloud/lint-eslint.yml"
     },
     {
