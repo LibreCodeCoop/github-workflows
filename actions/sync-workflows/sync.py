@@ -245,8 +245,14 @@ def render_summary(report: dict[str, object]) -> str:
 
 def write_output(name: str, value: str) -> None:
     output = os.environ.get("GITHUB_OUTPUT")
-    if output:
-        with Path(output).open("a", encoding="utf-8") as handle:
+    if not output:
+        return
+
+    with Path(output).open("a", encoding="utf-8") as handle:
+        if "\n" in value:
+            delimiter = f"WORKFLOW_SYNC_{name.upper()}"
+            handle.write(f"{name}<<{delimiter}\n{value}{delimiter}\n")
+        else:
             handle.write(f"{name}={value}\n")
 
 
