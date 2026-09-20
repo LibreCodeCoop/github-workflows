@@ -66,6 +66,7 @@ jobs:
           app-id: ${{ vars.LIBRECODE_WORKFLOW_APP_ID }}
           private-key: ${{ secrets.LIBRECODE_WORKFLOW_APP_PRIVATE_KEY }}
           owner: LibreCodeCoop
+          repositories: ${{ matrix.repository_name }}
           permission-contents: write
           permission-pull-requests: write
           permission-workflows: write
