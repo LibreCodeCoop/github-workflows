@@ -58,6 +58,7 @@ class SyncConsumerTest(unittest.TestCase):
                     "include": [
                         {
                             "repository": "LibreCodeCoop/extract",
+                            "repository_name": "extract",
                             "workflows": ["reuse.yml"],
                         }
                     ]
