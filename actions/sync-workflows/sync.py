@@ -184,14 +184,17 @@ def main() -> int:
 
         report = sync(source, target, lock_path)
 
-        summary_path = target / ".github/workflow-sync-summary.md"
+        summary = render_summary(report)
+        summary_root = Path(os.environ.get("RUNNER_TEMP", target / ".github"))
+        summary_path = summary_root / "workflow-sync-summary.md"
         summary_path.parent.mkdir(parents=True, exist_ok=True)
-        summary_path.write_text(render_summary(report), encoding="utf-8")
+        summary_path.write_text(summary, encoding="utf-8")
 
         write_output("changed", str(report["changed"]).lower())
         write_output("patch_failed", str(report["patch_failed"]).lower())
         write_output("updated", json.dumps(report["updated"], separators=(",", ":")))
         write_output("failed", json.dumps(report["failed"], separators=(",", ":")))
+        write_output("summary", summary)
         write_output("summary_file", str(summary_path))
 
         print(json.dumps(report, indent=2, sort_keys=True))
