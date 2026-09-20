@@ -3,9 +3,11 @@
 
 import hashlib
 import importlib.util
+import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 MODULE_PATH = (
     Path(__file__).resolve().parents[1]
@@ -192,6 +194,31 @@ class SyncWorkflowsActionTest(unittest.TestCase):
             self.assertEqual(
                 sync_module.parse_lock(target / ".github/actions-lock.txt")["sync.yml"],
                 sync_module.md5(source_file),
+            )
+
+    def test_writes_single_line_github_output(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "output"
+            with patch.dict(os.environ, {"GITHUB_OUTPUT": str(output)}):
+                sync_module.write_output("changed", "true")
+
+            self.assertEqual(
+                output.read_text(encoding="utf-8"),
+                "changed=true\n",
+            )
+
+    def test_writes_multiline_github_output(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "output"
+            with patch.dict(os.environ, {"GITHUB_OUTPUT": str(output)}):
+                sync_module.write_output("summary", "line one\nline two\n")
+
+            self.assertEqual(
+                output.read_text(encoding="utf-8"),
+                "summary<<WORKFLOW_SYNC_SUMMARY\n"
+                "line one\n"
+                "line two\n"
+                "WORKFLOW_SYNC_SUMMARY\n",
             )
 
     def test_mixed_result_summary_is_deterministic(self) -> None:
