@@ -1,0 +1,31 @@
+# SPDX-FileCopyrightText: 2026 LibreCode coop and contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+name: Validate Nextcloud release artifact
+description: Validate the structure and declared version of a Nextcloud app release tarball
+
+inputs:
+  artifact:
+    description: Path to the app release tar.gz
+    required: true
+  app-name:
+    description: Nextcloud app id and expected top-level archive directory
+    required: true
+  version:
+    description: Expected app version, with or without the v prefix
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Validate release artifact
+      shell: bash
+      env:
+        ARTIFACT: ${{ inputs.artifact }}
+        APP_NAME: ${{ inputs.app-name }}
+        APP_VERSION: ${{ inputs.version }}
+      run: |
+        python3 "$GITHUB_ACTION_PATH/../../scripts/validate_release_artifact.py" \
+          --artifact "$ARTIFACT" \
+          --app-name "$APP_NAME" \
+          --version "${APP_VERSION#v}"
