@@ -1,6 +1,6 @@
 --- upstream/vendor/nextcloud/sync-workflow-templates.yml
 +++ workflow-templates/sync-workflow-templates.yml
-@@ -1,9 +1,10 @@
+@@ -1,9 +1,9 @@
  # This workflow is provided via the organization template repository
  #
 -# https://github.com/nextcloud/.github
@@ -11,7 +11,7 @@
  # SPDX-License-Identifier: MIT
  
  # This workflow will update all workflow templates
-@@ -42,12 +43,24 @@
+@@ -42,12 +42,24 @@
          with:
            require: admin
  
@@ -37,7 +37,7 @@
  
        - name: Checkout app
          uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-@@ -78,7 +91,7 @@
+@@ -78,7 +90,7 @@
                    echo "ℹ️ Locked version: $locked_version"
                    echo "ℹ️ Current version: $new_version"
                    echo "🆙 Updating existing workflow: $filename"
@@ -46,7 +46,7 @@
  
                    cp "$workflow" "$target_file"
  
-@@ -123,10 +136,10 @@
+@@ -123,10 +135,10 @@
        - name: Create Pull Request
          uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
          with:
@@ -59,7 +59,7 @@
            path: target
            signoff: true
            branch: 'automated/noid/${{ matrix.branches }}-update-workflows'
-@@ -134,7 +147,7 @@
+@@ -134,7 +146,7 @@
            draft: ${{ env.DRAFT_ONLY == 1 }}
            add-paths: .github/workflows/*.yml,.github/actions-lock.txt
            body: |
