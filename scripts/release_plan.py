@@ -183,6 +183,18 @@ def _required(value: str | None, name: str) -> str:
     return value
 
 
+def parse_blocker_queries(value: str) -> tuple[str, ...]:
+    try:
+        queries = json.loads(value)
+    except json.JSONDecodeError as error:
+        raise ValueError(f"blocker queries must be valid JSON: {error.msg}") from error
+
+    if not isinstance(queries, list) or not all(isinstance(item, str) for item in queries):
+        raise ValueError("blocker queries must be a JSON array of strings")
+
+    return tuple(queries)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--version", required=True)
@@ -191,8 +203,8 @@ def main() -> int:
     parser.add_argument("--repository")
     parser.add_argument("--appinfo", type=Path, default=Path("appinfo/info.xml"))
     parser.add_argument("--changelog", type=Path, default=Path("CHANGELOG.md"))
-    parser.add_argument("--milestone")
-    parser.add_argument("--blocker-query", action="append", default=[])
+    parser.add_argument("--milestone", default="")
+    parser.add_argument("--blocker-queries-json", default="[]")
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
 
@@ -205,8 +217,8 @@ def main() -> int:
                 repository=args.repository,
                 appinfo=args.appinfo,
                 changelog=args.changelog,
-                milestone=args.milestone,
-                blocker_queries=tuple(args.blocker_query),
+                milestone=args.milestone or None,
+                blocker_queries=parse_blocker_queries(args.blocker_queries_json),
             ),
             token=os.environ.get("GITHUB_TOKEN"),
         )
