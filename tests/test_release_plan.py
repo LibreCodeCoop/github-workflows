@@ -1,13 +1,16 @@
 # SPDX-FileCopyrightText: 2026 LibreCode coop and contributors
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import json
+import os
+import sys
 import tempfile
 import unittest
 from dataclasses import replace
 from pathlib import Path
 from unittest.mock import patch
 
-from scripts.release_plan import PlanInput, build_plan, parse_blocker_queries
+from scripts.release_plan import PlanInput, build_plan, main, parse_blocker_queries
 
 
 class ReleasePlanTest(unittest.TestCase):
@@ -98,6 +101,42 @@ class ReleasePlanTest(unittest.TestCase):
     def test_rejects_invalid_blocker_queries_json(self) -> None:
         with self.assertRaisesRegex(ValueError, "valid JSON"):
             parse_blocker_queries('["unterminated"')
+
+    def test_main_reads_action_environment_and_writes_summary(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            config = self.fixture(directory)
+            output = Path(directory) / "release-plan.json"
+            summary = Path(directory) / "summary.md"
+            env = {
+                "RELEASE_PLAN_VERSION": config.version,
+                "RELEASE_PLAN_STABLE_BRANCH": config.stable_branch,
+                "RELEASE_PLAN_APPINFO_PATH": str(config.appinfo),
+                "RELEASE_PLAN_CHANGELOG_PATH": str(config.changelog),
+                "RELEASE_PLAN_BLOCKER_QUERIES": "[]",
+                "RELEASE_PLAN_OUTPUT": str(output),
+                "GITHUB_REF_NAME": config.current_ref,
+                "GITHUB_REPOSITORY": "Example/app",
+                "GITHUB_STEP_SUMMARY": str(summary),
+            }
+
+            with (
+                patch.dict(os.environ, env, clear=True),
+                patch.object(sys, "argv", ["release_plan.py"]),
+            ):
+                self.assertEqual(main(), 0)
+
+            plan = json.loads(output.read_text(encoding="utf-8"))
+            self.assertTrue(plan["ready"])
+            summary_content = summary.read_text(encoding="utf-8")
+            self.assertIn("## Release plan", summary_content)
+            self.assertIn('"ready": true', summary_content)
+
+    def test_main_rejects_missing_required_action_environment(self) -> None:
+        with (
+            patch.dict(os.environ, {}, clear=True),
+            patch.object(sys, "argv", ["release_plan.py"]),
+        ):
+            self.assertEqual(main(), 2)
 
 
 if __name__ == "__main__":
