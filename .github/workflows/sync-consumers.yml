@@ -26,6 +26,25 @@ jobs:
     outputs:
       matrix: ${{ steps.matrix.outputs.matrix }}
     steps:
+      - name: Checkout workflow source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Build matrix
+        id: matrix
+        run: echo "matrix=$(python3 scripts/sync_consumer.py matrix consumers.json)" >> "$GITHUB_OUTPUT"
+
+  sync:
+    name: Sync ${{ matrix.repository }}
+    needs: consumers
+    if: ${{ needs.consumers.outputs.matrix != '{"include":[]}' }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.consumers.outputs.matrix) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
       - name: Validate GitHub App configuration
         env:
           WORKFLOW_APP_ID: ${{ vars.LIBRECODE_WORKFLOW_APP_ID }}
@@ -51,25 +70,6 @@ jobs:
           permission-pull-requests: write
           permission-workflows: write
 
-      - name: Checkout workflow source
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Build matrix
-        id: matrix
-        run: echo "matrix=$(python3 scripts/sync_consumer.py matrix consumers.json)" >> "$GITHUB_OUTPUT"
-
-  sync:
-    name: Sync ${{ matrix.repository }}
-    needs: consumers
-    if: ${{ needs.consumers.outputs.matrix != '{"include":[]}' }}
-    strategy:
-      fail-fast: false
-      matrix: ${{ fromJSON(needs.consumers.outputs.matrix) }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
       - name: Checkout workflow source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
