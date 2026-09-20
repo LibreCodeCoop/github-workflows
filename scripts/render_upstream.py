@@ -154,6 +154,74 @@ def write_report(report: dict[str, object], path: Path) -> None:
     )
 
 
+def render_pull_request_body(report: dict[str, object] | None) -> str:
+    lines = [
+        "Automated refresh of tracked upstream workflow sources.",
+        "",
+        "The source URLs in this change are pinned to immutable commit SHAs "
+        "and SHA-256 hashes.",
+        "",
+        "## Patch status",
+        "",
+    ]
+
+    if report is None:
+        lines.append("No patch report was produced. Review the workflow run before merging.")
+    else:
+        lines.extend(
+            [
+                f"- Updated templates: {report['updated']}",
+                f"- Unchanged templates: {report['unchanged']}",
+                f"- Failed templates: {report['failed']}",
+                "",
+            ]
+        )
+
+        for item in report["templates"]:
+            status = item["status"]
+            icon = {"updated": "✅", "unchanged": "➖", "failed": "❌"}[status]
+            lines.append(f"### {icon} {item['name']} — {status}")
+            lines.append("")
+            lines.append(f"Destination: {item['destination']}")
+
+            patches = item["patches"]
+            if patches:
+                lines.extend(["", "Patches:"])
+                lines.extend(f"- {patch}" for patch in patches)
+
+            if status == "failed":
+                lines.extend(
+                    [
+                        "",
+                        "Patch application failed:",
+                        "",
+                        "~~~text",
+                        str(item["error"]),
+                        "~~~",
+                        "",
+                        "The vendored upstream source was updated, but the generated "
+                        "template was left unchanged and needs manual patch adjustment.",
+                    ]
+                )
+
+            lines.append("")
+
+    lines.extend(
+        [
+            "Review upstream changes and downstream patches before merging.",
+            "",
+        ]
+    )
+    return "\n".join(lines)
+
+
+def write_pull_request_body(report_path: Path, output_path: Path) -> None:
+    report = None
+    if report_path.is_file():
+        report = json.loads(report_path.read_text(encoding="utf-8"))
+    output_path.write_text(render_pull_request_body(report), encoding="utf-8")
+
+
 def _validate_relative_path(path: Path) -> None:
     if path.is_absolute() or ".." in path.parts:
         raise ValueError(f"unsafe path: {path}")
@@ -176,14 +244,24 @@ def _non_empty_string(value: object, path: str) -> str:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=("sync", "check"))
-    parser.add_argument("manifest", type=Path)
+    parser.add_argument("command", choices=("sync", "check", "pr-body"))
+    parser.add_argument("manifest", type=Path, nargs="?")
     parser.add_argument("--report", type=Path)
+    parser.add_argument("--output", type=Path)
     args = parser.parse_args()
 
     root = Path.cwd()
 
     try:
+        if args.command == "pr-body":
+            if args.report is None or args.output is None:
+                parser.error("pr-body requires --report and --output")
+            write_pull_request_body(args.report, args.output)
+            return 0
+
+        if args.manifest is None:
+            parser.error(f"{args.command} requires a manifest")
+
         templates = load_templates(args.manifest)
         if args.command == "sync":
             report = sync(templates, root)
