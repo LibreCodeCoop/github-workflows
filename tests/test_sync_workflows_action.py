@@ -196,6 +196,17 @@ class SyncWorkflowsActionTest(unittest.TestCase):
                 sync_module.md5(source_file),
             )
 
+    def test_writes_single_line_github_output(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "output"
+            with patch.dict(os.environ, {"GITHUB_OUTPUT": str(output)}):
+                sync_module.write_output("changed", "true")
+
+            self.assertEqual(
+                output.read_text(encoding="utf-8"),
+                "changed=true\n",
+            )
+
     def test_writes_multiline_github_output(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / "output"
