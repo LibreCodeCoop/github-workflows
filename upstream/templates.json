@@ -7,6 +7,14 @@
         "patches/nextcloud/appstore-build-publish.yml.patch"
       ],
       "destination": "workflow-templates/appstore-build-publish.yml"
+    },
+    {
+      "name": "nextcloud-reuse",
+      "source": "upstream/vendor/nextcloud/reuse.yml",
+      "patches": [
+        "patches/nextcloud/reuse.yml.patch"
+      ],
+      "destination": "workflow-templates/reuse.yml"
     }
   ]
 }
