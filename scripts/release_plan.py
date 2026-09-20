@@ -195,25 +195,65 @@ def parse_blocker_queries(value: str) -> tuple[str, ...]:
     return tuple(queries)
 
 
+def _required_input(value: str | None, name: str) -> str:
+    if not value:
+        raise ValueError(f"{name} is required")
+    return value
+
+
+def _write_summary(output: Path) -> None:
+    summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
+    if not summary_path or not output.is_file():
+        return
+
+    summary = Path(summary_path)
+    with summary.open("a", encoding="utf-8") as stream:
+        stream.write("## Release plan\n\n")
+        stream.write("~~~json\n")
+        stream.write(output.read_text(encoding="utf-8"))
+        stream.write("~~~\n")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--version", required=True)
-    parser.add_argument("--stable-branch", required=True)
-    parser.add_argument("--current-ref", required=True)
-    parser.add_argument("--repository")
-    parser.add_argument("--appinfo", type=Path, default=Path("appinfo/info.xml"))
-    parser.add_argument("--changelog", type=Path, default=Path("CHANGELOG.md"))
-    parser.add_argument("--milestone", default="")
-    parser.add_argument("--blocker-queries-json", default="[]")
-    parser.add_argument("--output", type=Path)
+    parser.add_argument("--version", default=os.environ.get("RELEASE_PLAN_VERSION"))
+    parser.add_argument(
+        "--stable-branch",
+        default=os.environ.get("RELEASE_PLAN_STABLE_BRANCH"),
+    )
+    parser.add_argument("--current-ref", default=os.environ.get("GITHUB_REF_NAME"))
+    parser.add_argument("--repository", default=os.environ.get("GITHUB_REPOSITORY"))
+    parser.add_argument(
+        "--appinfo",
+        type=Path,
+        default=Path(os.environ.get("RELEASE_PLAN_APPINFO_PATH", "appinfo/info.xml")),
+    )
+    parser.add_argument(
+        "--changelog",
+        type=Path,
+        default=Path(os.environ.get("RELEASE_PLAN_CHANGELOG_PATH", "CHANGELOG.md")),
+    )
+    parser.add_argument("--milestone", default=os.environ.get("RELEASE_PLAN_MILESTONE", ""))
+    parser.add_argument(
+        "--blocker-queries-json",
+        default=os.environ.get("RELEASE_PLAN_BLOCKER_QUERIES", "[]"),
+    )
+    parser.add_argument(
+        "--output",
+        type=Path,
+        default=Path(os.environ.get("RELEASE_PLAN_OUTPUT", "release-plan.json")),
+    )
     args = parser.parse_args()
 
     try:
+        version = _required_input(args.version, "version")
+        stable_branch = _required_input(args.stable_branch, "stable branch")
+        current_ref = _required_input(args.current_ref, "current ref")
         plan = build_plan(
             PlanInput(
-                version=args.version,
-                stable_branch=args.stable_branch,
-                current_ref=args.current_ref,
+                version=version,
+                stable_branch=stable_branch,
+                current_ref=current_ref,
                 repository=args.repository,
                 appinfo=args.appinfo,
                 changelog=args.changelog,
@@ -228,8 +268,8 @@ def main() -> int:
 
     rendered = json.dumps(plan, indent=2, sort_keys=True)
     print(rendered)
-    if args.output:
-        args.output.write_text(rendered + "\n", encoding="utf-8")
+    args.output.write_text(rendered + "\n", encoding="utf-8")
+    _write_summary(args.output)
 
     return 0 if plan["ready"] else 1
 
