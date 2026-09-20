@@ -19,23 +19,9 @@ The tracking ref can be mutable. The effective source cannot: after refresh, the
 manifest is rewritten to a full commit SHA and content hash before the vendored
 file is accepted.
 
-Example:
-
-```json
-{
-  "sources": [
-    {
-      "name": "example",
-      "repository": "example/project",
-      "ref": "main",
-      "path": ".github/workflows/example.yml",
-      "url": "https://raw.githubusercontent.com/example/project/<commit>/.github/workflows/example.yml",
-      "sha256": "<64 lowercase hex characters>",
-      "destination": "upstream/vendor/example/example.yml"
-    }
-  ]
-}
-```
+Rendered downstream templates are declared separately in
+`upstream/templates.json`. Each template points to one vendored source, an
+ordered patch list and a generated destination under `templates/`.
 
 ## Commands
 
@@ -58,17 +44,37 @@ vendored files:
 python3 scripts/sync_upstream.py refresh upstream/sources.json
 ```
 
-The scheduled `refresh-upstream.yml` workflow runs this refresh weekly, validates
-the result and opens a pull request when upstream changed.
+Render vendored workflows with downstream patches:
+
+```bash
+python3 scripts/render_upstream.py sync upstream/templates.json
+```
+
+The renderer processes every declared template. Successful templates are updated.
+If one or more patches no longer apply, those templates are left unchanged and
+the renderer returns a structured report containing every failure.
+
+## Automated refresh
+
+The scheduled `refresh-upstream.yml` workflow:
+
+1. resolves each tracked upstream workflow to its latest commit;
+2. updates the immutable URL, SHA-256 and vendored bytes;
+3. verifies the vendored sources;
+4. attempts every downstream patch;
+5. runs the test suite;
+6. opens one pull request containing the upstream and successfully rendered changes.
+
+If all patches apply, the pull request is normal. If any patch fails, the pull
+request is opened as draft and its body lists each failed template, patch path and
+error. The generated template for a failed patch remains at its previous known-good
+version. The workflow then fails after creating the pull request so the problem is
+also visible in Actions.
+
+Failures while resolving, downloading or verifying upstream sources are treated
+as fatal and do not create a partial update pull request.
 
 A dedicated `WORKFLOW_UPDATE_TOKEN` secret is required for pull-request creation.
 Using only the workflow's `GITHUB_TOKEN` would prevent the resulting pull request
-from triggering the normal CI workflows. The refresh itself only uses the
-read-only `GITHUB_TOKEN` to resolve public upstream commits.
-
-Both `sync` and `check` verify the recorded source hash before accepting
-content. `refresh` only records bytes fetched from the exact commit it resolved.
-
-Patch application is intentionally a separate layer: upstream bytes remain
-verbatim under `upstream/vendor/`, while downstream adaptations should be stored
-as reviewable patches and rendered into generated templates.
+from triggering the normal CI workflows. The refresh itself uses the read-only
+`GITHUB_TOKEN` to resolve public upstream commits.
