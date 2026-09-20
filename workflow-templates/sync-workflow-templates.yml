@@ -7,13 +7,13 @@
 # SPDX-FileCopyrightText: 2026 LibreCode coop and contributors
 # SPDX-License-Identifier: MIT
 
-# This workflow updates local workflow copies from the LibreCode organization catalog.
-# Local `workflow.yml.patch` files are reapplied after syncing and before the pull request is created.
+# This workflow will update all workflow templates
+# Additionally it will reapply `workflow.yml.patch` files after syncing and only then commit the result
 name: Update workflows
 on:
   workflow_dispatch:
   schedule:
-    - cron: "5 2 * * 0"
+      - cron: "5 2 * * 0"
 
 permissions:
   contents: read
@@ -21,31 +21,26 @@ permissions:
 jobs:
   dispatch:
     runs-on: ubuntu-latest
-    name: Update workflows in ${{ github.event.repository.default_branch }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        branches:
+          - ${{ github.event.repository.default_branch }}
+          - 'stable32'
+          - 'stable31'
+
+    name: Update workflows in ${{ matrix.branches }}
+
     permissions:
       contents: write
       pull-requests: write
 
     steps:
       - name: Check actor permission
-        if: github.event_name == 'workflow_dispatch'
         uses: skjnldsv/check-actor-permission@69e92a3c4711150929bca9fcf34448c5bf5526e7 # v3.0
         with:
           require: admin
-
-      - name: Validate GitHub App configuration
-        env:
-          WORKFLOW_APP_ID: ${{ vars.LIBRECODE_WORKFLOW_APP_ID }}
-          WORKFLOW_APP_PRIVATE_KEY: ${{ secrets.LIBRECODE_WORKFLOW_APP_PRIVATE_KEY }}
-        run: |
-          if [ -z "$WORKFLOW_APP_ID" ]; then
-            echo "::error::LIBRECODE_WORKFLOW_APP_ID is not configured."
-            exit 1
-          fi
-          if [ -z "$WORKFLOW_APP_PRIVATE_KEY" ]; then
-            echo "::error::LIBRECODE_WORKFLOW_APP_PRIVATE_KEY is not configured."
-            exit 1
-          fi
 
       - name: Create GitHub App token
         id: app-token
@@ -71,83 +66,88 @@ jobs:
         with:
           persist-credentials: false
           path: target
-          ref: ${{ github.event.repository.default_branch }}
+          ref: ${{ matrix.branches }}
 
       - name: Copy all workflow templates
         run: |
-          echo 'SUMMARY<<EOF' >> "$GITHUB_ENV"
+          echo 'SUMMARY<<EOF' >> $GITHUB_ENV
           draft_only=0
-          lock_file="./target/.github/actions-lock.txt"
-          if [ ! -f "$lock_file" ]; then
-            printf '%s\n' \
-              '# SPDX-FileCopyrightText: 2026 LibreCode coop and contributors' \
-              '# SPDX-License''-Identifier: MIT' \
-              > "$lock_file"
-          fi
-
           for workflow in ./source/workflow-templates/*.yml; do
-            filename=$(basename "$workflow")
-            target_file="./target/.github/workflows/$filename"
+            echo "❓ Looking for $workflow"
+            if [ -f "$workflow" ]; then
+              filename=$(basename "$workflow")
+              target_file="./target/.github/workflows/$filename"
 
-            if [ ! -f "$target_file" ]; then
-              echo "Skipping $filename: does not exist in target repository"
-              continue
-            fi
+              # Only copy if the file exists in the target repository
+              if [ -f "$target_file" ]; then
+                if [ -f "./target/.github/actions-lock.txt" ]; then
+                  locked_version=$(grep " $filename" ./target/.github/actions-lock.txt | cat)
+                else
+                  echo "# SPDX-FileCopyrightText: 2025 Nextcloud GmbH and Nextcloud contributors" >> ./target/.github/actions-lock.txt
+                  echo "# SPDX-License""-Identifier: MIT" >> ./target/.github/actions-lock.txt
+                  locked_version=""
+                fi
+                locked_version=$(echo $locked_version | cut -f 1 -d " ")
+                new_version=$(md5sum $workflow | cut -f 1 -d " ")
 
-            locked_version=$(grep " $filename$" "$lock_file" | cut -f 1 -d ' ' || true)
-            new_version=$(sha256sum "$workflow" | cut -f 1 -d ' ')
+                # Only update if the action changes
+                if [[ "$locked_version" != "$new_version" ]]; then
+                  echo "ℹ️ Locked version: $locked_version"
+                  echo "ℹ️ Current version: $new_version"
+                  echo "🆙 Updating existing workflow: $filename"
+                  echo "- 🆙 Updated [$filename](https://github.com/nextcloud/.github/commits/master/workflow-templates/$filename)" >> $GITHUB_ENV
 
-            if [ "$locked_version" = "$new_version" ]; then
-              echo "Skipping $filename: already up to date"
-              continue
-            fi
+                  cp "$workflow" "$target_file"
 
-            echo "Updating existing workflow: $filename"
-            echo "- Updated [$filename](https://github.com/LibreCodeCoop/.github/commits/main/workflow-templates/$filename)" >> "$GITHUB_ENV"
-            cp "$workflow" "$target_file"
+                  # Apply patch if one exists
+                  if [ -f "$target_file.patch" ]; then
+                    echo "🩹 Applying patch"
+                    cd ./target
+                    set +e
+                    patch -p1 < ".github/workflows/$filename.patch"
+                    patch_worked=$?
+                    set -e
+                    cd -
+                    if [[ "$patch_worked" == "0" ]]; then
+                      echo "  - Patch applied" >> $GITHUB_ENV
+                    else
+                      echo "  - [ ] ❌ Patch failed" >> $GITHUB_ENV
+                      draft_only=1
+                    fi
+                  fi
 
-            if [ -f "$target_file.patch" ]; then
-              echo "Applying local patch for $filename"
-              set +e
-              (
-                cd ./target
-                patch -p1 < ".github/workflows/$filename.patch"
-              )
-              patch_worked=$?
-              set -e
-              if [ "$patch_worked" -eq 0 ]; then
-                echo "  - Patch applied" >> "$GITHUB_ENV"
+                  if [[ "$locked_version" != "" ]]; then
+                    sed -i "s/$locked_version $filename/$new_version $filename/" ./target/.github/actions-lock.txt
+                  else
+                    echo "$new_version $filename" >> ./target/.github/actions-lock.txt
+                  fi
+                else
+                  echo "✅ Skipping $filename: already up to date"
+                fi
               else
-                echo "  - [ ] Patch failed" >> "$GITHUB_ENV"
-                draft_only=1
+                echo "⏭️ Skipping $filename: does not exist in target repository"
               fi
             fi
-
-            if grep -q " $filename$" "$lock_file"; then
-              sed -i "s/^[^ ]* $filename$/$new_version $filename/" "$lock_file"
-            else
-              echo "$new_version $filename" >> "$lock_file"
-            fi
           done
-          echo 'EOF' >> "$GITHUB_ENV"
-          echo "DRAFT_ONLY=${draft_only}" >> "$GITHUB_ENV"
+          echo 'EOF' >> $GITHUB_ENV
+          echo "DRAFT_ONLY=${draft_only}" >> $GITHUB_ENV
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
         with:
           token: ${{ steps.app-token.outputs.token }}
-          commit-message: 'ci(actions): update workflow templates from LibreCode catalog'
+          commit-message: 'ci(actions): Update workflow templates from organization template repository'
           committer: GitHub <noreply@github.com>
           author: librecode-workflow-automation[bot] <noreply@github.com>
           path: target
           signoff: true
-          branch: 'automated/update-workflows'
-          delete-branch: true
-          title: 'ci(actions): update workflow templates from LibreCode catalog'
+          branch: 'automated/noid/${{ matrix.branches }}-update-workflows'
+          title: '[${{ matrix.branches }}] ci(actions): Update workflow templates from organization template repository'
           draft: ${{ env.DRAFT_ONLY == 1 }}
-          add-paths: |
-            .github/workflows/*.yml
-            .github/actions-lock.txt
+          add-paths: .github/workflows/*.yml,.github/actions-lock.txt
           body: |
-            Automated update of workflow templates from [LibreCodeCoop/.github](https://github.com/LibreCodeCoop/.github).
+            Automated update of all workflow templates from [LibreCodeCoop/.github](https://github.com/LibreCodeCoop/.github)
             ${{ env.SUMMARY }}
+          labels: |
+            dependencies
+            3. to review
