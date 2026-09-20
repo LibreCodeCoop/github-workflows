@@ -76,19 +76,24 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
           BLOCKER_QUERIES: ${{ inputs.blocker_queries }}
+          RELEASE_VERSION: ${{ inputs.version }}
+          STABLE_BRANCH: ${{ inputs.stable_branch }}
+          APPINFO_PATH: ${{ inputs.appinfo_path }}
+          CHANGELOG_PATH: ${{ inputs.changelog_path }}
+          MILESTONE: ${{ inputs.milestone }}
         run: |
           args=(
-            --version "${{ inputs.version }}"
-            --stable-branch "${{ inputs.stable_branch }}"
-            --current-ref "${GITHUB_REF_NAME}"
-            --repository "${GITHUB_REPOSITORY}"
-            --appinfo "${{ inputs.appinfo_path }}"
-            --changelog "${{ inputs.changelog_path }}"
+            --version "$RELEASE_VERSION"
+            --stable-branch "$STABLE_BRANCH"
+            --current-ref "$GITHUB_REF_NAME"
+            --repository "$GITHUB_REPOSITORY"
+            --appinfo "$APPINFO_PATH"
+            --changelog "$CHANGELOG_PATH"
             --output release-plan.json
           )
 
-          if [[ -n "${{ inputs.milestone }}" ]]; then
-            args+=(--milestone "${{ inputs.milestone }}")
+          if [[ -n "$MILESTONE" ]]; then
+            args+=(--milestone "$MILESTONE")
           fi
 
           while IFS= read -r query; do
