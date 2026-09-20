@@ -4,7 +4,6 @@
 # https://docs.github.com/en/actions/learn-github-actions/sharing-workflows-with-your-organization
 #
 # SPDX-FileCopyrightText: 2025 Nextcloud GmbH and Nextcloud contributors
-# SPDX-FileCopyrightText: 2026 LibreCode coop and contributors
 # SPDX-License-Identifier: MIT
 
 # This workflow will update all workflow templates
