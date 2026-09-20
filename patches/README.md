@@ -11,7 +11,7 @@ Each rendered template is declared in `upstream/templates.json` with:
 
 - an immutable vendored source under `upstream/vendor/`;
 - zero or more ordered unified-diff patches from this directory;
-- a generated destination under `templates/`.
+- a generated destination under GitHub's native `workflow-templates/` directory.
 
 Render all declared templates with:
 
