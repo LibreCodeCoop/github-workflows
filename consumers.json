@@ -9,13 +9,6 @@
         "openapi.yml",
         "psalm.yml"
       ]
-    },
-    {
-      "repository": "LibreSign/libresign",
-      "workflows": [
-        "lint-typescript.yml",
-        "node-test.yml"
-      ]
     }
   ]
 }
