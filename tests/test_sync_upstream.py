@@ -220,6 +220,53 @@ class SyncUpstreamTest(unittest.TestCase):
                 "example/project", "master", "workflow.yml", "token"
             )
 
+    @patch("scripts.sync_upstream._download")
+    @patch("scripts.sync_upstream._latest_commit")
+    def test_refresh_keeps_existing_pin_when_content_is_unchanged(
+        self, latest_commit, download
+    ) -> None:
+        old_commit = "0" * 40
+        new_commit = "1" * 40
+        content = b"name: Same\n"
+        digest = hashlib.sha256(content).hexdigest()
+        latest_commit.return_value = new_commit
+        download.return_value = content
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            manifest = root / "sources.json"
+            original_url = (
+                "https://raw.githubusercontent.com/example/project/"
+                + old_commit
+                + "/workflow.yml"
+            )
+            manifest.write_text(
+                json.dumps(
+                    {
+                        "sources": [
+                            {
+                                "name": "workflow",
+                                "repository": "example/project",
+                                "ref": "master",
+                                "path": "workflow.yml",
+                                "url": original_url,
+                                "sha256": digest,
+                                "destination": "templates/workflow.yml",
+                            }
+                        ]
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            refresh(manifest, root, token="token")
+
+            payload = json.loads(manifest.read_text(encoding="utf-8"))
+            [source] = payload["sources"]
+            self.assertEqual(source["url"], original_url)
+            self.assertEqual(source["sha256"], digest)
+            self.assertEqual((root / "templates/workflow.yml").read_bytes(), content)
+
     def test_rejects_destination_escape(self) -> None:
         content = b"name: Example\n"
         source = Source(
