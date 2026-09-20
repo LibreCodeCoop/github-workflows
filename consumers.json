@@ -1,0 +1,10 @@
+{
+  "consumers": [
+    {
+      "repository": "LibreCodeCoop/extract",
+      "workflows": [
+        "reuse.yml"
+      ]
+    }
+  ]
+}
