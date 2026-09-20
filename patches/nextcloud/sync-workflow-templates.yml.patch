@@ -56,7 +56,7 @@
            commit-message: 'ci(actions): Update workflow templates from organization template repository'
            committer: GitHub <noreply@github.com>
 -          author: nextcloud-command <nextcloud-command@users.noreply.github.com>
-+          author: librecode-workflow-automation[bot] <noreply@github.com>
++          author: librecode-workflow-automation[bot] <331658022+librecode-workflow-automation[bot]@users.noreply.github.com>
            path: target
            signoff: true
            branch: 'automated/noid/${{ matrix.branches }}-update-workflows'
