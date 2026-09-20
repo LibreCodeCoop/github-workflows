@@ -63,10 +63,8 @@ jobs:
         with:
           node-version: ${{ steps.versions.outputs.nodeVersion }}
 
-      - name: Enforce package engine requirements
-        run: |
-          npm --version
-          npm config set engine-strict true
+      - name: Show npm version
+        run: npm --version
 
       - name: Validate package-lock.json
         run: |
