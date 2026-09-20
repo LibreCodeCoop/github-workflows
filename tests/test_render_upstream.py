@@ -127,6 +127,24 @@ class RenderUpstreamTest(unittest.TestCase):
             self.assertEqual(failed["name"], "broken")
             self.assertIn("failed to apply", failed["error"])
 
+    def test_failed_patch_preserves_previous_generated_template(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root, manifest = self.fixture(directory)
+            source = root / "upstream/vendor/example.yml"
+            source.write_text("name: Changed upstream\n", encoding="utf-8")
+            destination = root / "workflow-templates/example.yml"
+            destination.parent.mkdir(parents=True)
+            destination.write_text("name: Last known good\n", encoding="utf-8")
+
+            report = sync(load_templates(manifest), root)
+
+            self.assertFalse(report["ok"])
+            self.assertEqual(report["failed"], 1)
+            self.assertEqual(
+                destination.read_text(encoding="utf-8"),
+                "name: Last known good\n",
+            )
+
     def test_write_report(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             report_path = Path(directory) / "report.json"
