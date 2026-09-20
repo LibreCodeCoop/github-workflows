@@ -111,7 +111,7 @@ class SyncConsumerTest(unittest.TestCase):
             target.write_text("name: Old\n", encoding="utf-8")
             old_hash = hashlib.sha256(b"name: Old\n").hexdigest()
             lock = self.lock_path(root)
-            lock.parent.mkdir(parents=True)
+            lock.parent.mkdir(parents=True, exist_ok=True)
             lock.write_text(
                 "# SPDX-FileCopyrightText: 2026 LibreCode coop and contributors\n"
                 "# SPDX-License-Identifier: MIT\n\n"
@@ -140,7 +140,7 @@ class SyncConsumerTest(unittest.TestCase):
             target.write_text("name: Local\n", encoding="utf-8")
             old_hash = hashlib.sha256(b"name: Old\n").hexdigest()
             lock = self.lock_path(root)
-            lock.parent.mkdir(parents=True)
+            lock.parent.mkdir(parents=True, exist_ok=True)
             lock.write_text(
                 "# SPDX-FileCopyrightText: 2026 LibreCode coop and contributors\n"
                 "# SPDX-License-Identifier: MIT\n\n"
@@ -169,7 +169,7 @@ class SyncConsumerTest(unittest.TestCase):
             target.write_bytes((source / "reuse.yml").read_bytes())
             digest = sha256(source / "reuse.yml")
             lock = self.lock_path(root)
-            lock.parent.mkdir(parents=True)
+            lock.parent.mkdir(parents=True, exist_ok=True)
             lock.write_text(
                 "# SPDX-FileCopyrightText: 2026 LibreCode coop and contributors\n"
                 "# SPDX-License-Identifier: MIT\n\n"
