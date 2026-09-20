@@ -22,6 +22,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      - name: Validate workflow update token
+        env:
+          WORKFLOW_UPDATE_TOKEN: ${{ secrets.WORKFLOW_UPDATE_TOKEN }}
+        run: |
+          if [ -z "$WORKFLOW_UPDATE_TOKEN" ]; then
+            echo "::error::WORKFLOW_UPDATE_TOKEN is not configured. It must have access to the target repositories and permission to create/update pull requests."
+            exit 1
+          fi
+
       - name: Checkout workflow source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
