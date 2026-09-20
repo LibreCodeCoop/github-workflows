@@ -10,6 +10,87 @@
       "destination": "upstream/vendor/nextcloud/appstore-build-publish.yml"
     },
     {
+      "name": "nextcloud-block-unconventional-commits",
+      "repository": "nextcloud/.github",
+      "ref": "master",
+      "path": "workflow-templates/block-unconventional-commits.yml",
+      "url": "https://raw.githubusercontent.com/nextcloud/.github/cf6248d5ef28a328cde764daf80bc5fae4705ade/workflow-templates/block-unconventional-commits.yml",
+      "sha256": "a123a3045de59f81b67e4554b9e463c1dbcd0ec7db745e53ea3cd7790f5b2e39",
+      "destination": "upstream/vendor/nextcloud/block-unconventional-commits.yml"
+    },
+    {
+      "name": "nextcloud-lint-eslint",
+      "repository": "nextcloud/.github",
+      "ref": "master",
+      "path": "workflow-templates/lint-eslint.yml",
+      "url": "https://raw.githubusercontent.com/nextcloud/.github/cf6248d5ef28a328cde764daf80bc5fae4705ade/workflow-templates/lint-eslint.yml",
+      "sha256": "f26cdca597f39732ebb42adba611633ba2c1249d285366bb0d3281f85df5f8dd",
+      "destination": "upstream/vendor/nextcloud/lint-eslint.yml"
+    },
+    {
+      "name": "nextcloud-lint-info-xml",
+      "repository": "nextcloud/.github",
+      "ref": "master",
+      "path": "workflow-templates/lint-info-xml.yml",
+      "url": "https://raw.githubusercontent.com/nextcloud/.github/cf6248d5ef28a328cde764daf80bc5fae4705ade/workflow-templates/lint-info-xml.yml",
+      "sha256": "cdfd953e3b0b04dfe0ac4c35169a4f6c58a2b62028c918d3d0d1c19e0a3237aa",
+      "destination": "upstream/vendor/nextcloud/lint-info-xml.yml"
+    },
+    {
+      "name": "nextcloud-lint-php",
+      "repository": "nextcloud/.github",
+      "ref": "master",
+      "path": "workflow-templates/lint-php.yml",
+      "url": "https://raw.githubusercontent.com/nextcloud/.github/cf6248d5ef28a328cde764daf80bc5fae4705ade/workflow-templates/lint-php.yml",
+      "sha256": "cdf80971a01d51a42cbcf4e0326e3830fa3613b0072b322d5277ba310873dd4b",
+      "destination": "upstream/vendor/nextcloud/lint-php.yml"
+    },
+    {
+      "name": "nextcloud-lint-php-cs",
+      "repository": "nextcloud/.github",
+      "ref": "master",
+      "path": "workflow-templates/lint-php-cs.yml",
+      "url": "https://raw.githubusercontent.com/nextcloud/.github/cf6248d5ef28a328cde764daf80bc5fae4705ade/workflow-templates/lint-php-cs.yml",
+      "sha256": "e6047b215571aa2746bd3d2786a14b3e0122fc34e70755a29ff573bb21e1672c",
+      "destination": "upstream/vendor/nextcloud/lint-php-cs.yml"
+    },
+    {
+      "name": "nextcloud-lint-stylelint",
+      "repository": "nextcloud/.github",
+      "ref": "master",
+      "path": "workflow-templates/lint-stylelint.yml",
+      "url": "https://raw.githubusercontent.com/nextcloud/.github/cf6248d5ef28a328cde764daf80bc5fae4705ade/workflow-templates/lint-stylelint.yml",
+      "sha256": "e66e5c0b4ff2cf6741a1891849ea3de8662c77c6d198131e0cf54ab2a82cccf7",
+      "destination": "upstream/vendor/nextcloud/lint-stylelint.yml"
+    },
+    {
+      "name": "nextcloud-npm-build",
+      "repository": "nextcloud/.github",
+      "ref": "master",
+      "path": "workflow-templates/npm-build.yml",
+      "url": "https://raw.githubusercontent.com/nextcloud/.github/cf6248d5ef28a328cde764daf80bc5fae4705ade/workflow-templates/npm-build.yml",
+      "sha256": "0004666c0ac21d5c10aee4b5912cac74de16f7d2e4e8d0307429aba4e4d1b838",
+      "destination": "upstream/vendor/nextcloud/npm-build.yml"
+    },
+    {
+      "name": "nextcloud-openapi",
+      "repository": "nextcloud/.github",
+      "ref": "master",
+      "path": "workflow-templates/openapi.yml",
+      "url": "https://raw.githubusercontent.com/nextcloud/.github/cf6248d5ef28a328cde764daf80bc5fae4705ade/workflow-templates/openapi.yml",
+      "sha256": "9e83f1409b455532b434f7a753b04e1e81a5e6e2a7e1291620ef443dee21bf5c",
+      "destination": "upstream/vendor/nextcloud/openapi.yml"
+    },
+    {
+      "name": "nextcloud-psalm",
+      "repository": "nextcloud/.github",
+      "ref": "master",
+      "path": "workflow-templates/psalm.yml",
+      "url": "https://raw.githubusercontent.com/nextcloud/.github/cf6248d5ef28a328cde764daf80bc5fae4705ade/workflow-templates/psalm.yml",
+      "sha256": "02d1db3a1549f5fa933b7157fc1a18d4b4593b35745a1f18be3f49e6e0499bd8",
+      "destination": "upstream/vendor/nextcloud/psalm.yml"
+    },
+    {
       "name": "nextcloud-reuse",
       "repository": "nextcloud/.github",
       "ref": "master",
