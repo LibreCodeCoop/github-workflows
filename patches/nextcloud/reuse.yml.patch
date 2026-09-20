@@ -1,6 +1,16 @@
 --- upstream/vendor/nextcloud/reuse.yml
 +++ upstream/vendor/nextcloud/reuse.yml
-@@ -16,7 +16,7 @@
+@@ -1,7 +1,8 @@
+-# This workflow is provided via the organization template repository
++# This workflow is maintained by LibreCodeCoop/github-workflows and published
++# through the LibreCodeCoop organization workflow catalog.
+ #
+-# https://github.com/nextcloud/.github
++# https://github.com/LibreCodeCoop/github-workflows
+ # https://docs.github.com/en/actions/learn-github-actions/sharing-workflows-with-your-organization
+ 
+ # SPDX-FileCopyrightText: 2022 Free Software Foundation Europe e.V. <https://fsfe.org>
+@@ -16,7 +17,7 @@
  jobs:
    reuse-compliance-check:
 -    runs-on: ubuntu-latest-low
