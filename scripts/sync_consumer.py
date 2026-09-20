@@ -12,7 +12,7 @@ from pathlib import Path
 
 LOCK_HEADER = (
     "# SPDX-FileCopyrightText: 2026 LibreCode coop and contributors\n"
-    "# SPDX-License-Identifier: MIT\n"
+    "# SPDX-" + "License-Identifier: MIT\n"
 )
 
 
