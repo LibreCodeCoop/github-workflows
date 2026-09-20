@@ -1,0 +1,14 @@
+{
+  "templates": [
+    "block-unconventional-commits",
+    "lint-eslint",
+    "lint-info-xml",
+    "lint-php",
+    "lint-php-cs",
+    "lint-stylelint",
+    "npm-build",
+    "openapi",
+    "psalm",
+    "reuse"
+  ]
+}

@@ -16,15 +16,85 @@ def is_publishable(path: Path) -> bool:
     return path.is_file() and path.name.endswith(PUBLISHABLE_SUFFIXES)
 
 
-def collect_publishable(directory: Path) -> dict[str, Path]:
+def load_catalog_manifest(path: Path) -> tuple[str, ...]:
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise ValueError("catalog manifest must be a JSON object")
+
+    templates = payload.get("templates")
+    if (
+        not isinstance(templates, list)
+        or not templates
+        or not all(isinstance(item, str) and item for item in templates)
+    ):
+        raise ValueError("catalog manifest must contain a non-empty templates array")
+
+    if len(set(templates)) != len(templates):
+        raise ValueError("catalog manifest contains duplicate template names")
+
+    for template in templates:
+        if Path(template).name != template:
+            raise ValueError(f"invalid catalog template name: {template}")
+
+    return tuple(sorted(templates))
+
+
+def collect_publishable(
+    directory: Path,
+    template_names: tuple[str, ...] | None = None,
+) -> dict[str, Path]:
     if not directory.is_dir():
         raise ValueError(f"directory does not exist: {directory}")
 
-    files = {
+    all_files = {
         path.name: path
         for path in directory.iterdir()
         if is_publishable(path)
     }
+
+    if template_names is None:
+        files = all_files
+    else:
+        files: dict[str, Path] = {}
+
+        for template in template_names:
+            yml_name = f"{template}.yml"
+            yaml_name = f"{template}.yaml"
+            candidates = [
+                name
+                for name in (yml_name, yaml_name)
+                if name in all_files
+            ]
+            if len(candidates) != 1:
+                raise ValueError(
+                    f"catalog template must have exactly one workflow file: {template}"
+                )
+
+            metadata_name = f"{template}.properties.json"
+            if metadata_name not in all_files:
+                raise ValueError(f"missing template metadata: {metadata_name}")
+
+            files[candidates[0]] = all_files[candidates[0]]
+            files[metadata_name] = all_files[metadata_name]
+
+        for template in template_names:
+            metadata_name = f"{template}.properties.json"
+            metadata = json.loads(
+                files[metadata_name].read_text(encoding="utf-8")
+            )
+            icon_name = metadata.get("iconName") if isinstance(metadata, dict) else None
+            if (
+                isinstance(icon_name, str)
+                and icon_name
+                and not icon_name.startswith("octicon ")
+            ):
+                icon_file = f"{icon_name}.svg"
+                if icon_file not in all_files:
+                    raise ValueError(
+                        f"metadata references missing icon {icon_file}: {metadata_name}"
+                    )
+                files[icon_file] = all_files[icon_file]
+
     validate_catalog(files)
     return files
 
@@ -74,8 +144,12 @@ def validate_catalog(files: dict[str, Path]) -> None:
                     )
 
 
-def sync_catalog(source: Path, target: Path) -> dict[str, list[str]]:
-    source_files = collect_publishable(source)
+def sync_catalog(
+    source: Path,
+    target: Path,
+    template_names: tuple[str, ...] | None = None,
+) -> dict[str, list[str]]:
+    source_files = collect_publishable(source, template_names)
     target.mkdir(parents=True, exist_ok=True)
 
     target_files = {
@@ -112,8 +186,12 @@ def sync_catalog(source: Path, target: Path) -> dict[str, list[str]]:
     }
 
 
-def check_catalog(source: Path, target: Path) -> None:
-    source_files = collect_publishable(source)
+def check_catalog(
+    source: Path,
+    target: Path,
+    template_names: tuple[str, ...] | None = None,
+) -> None:
+    source_files = collect_publishable(source, template_names)
     target_files = {
         path.name: path
         for path in target.iterdir()
@@ -141,12 +219,19 @@ def main() -> int:
     parser.add_argument("command", choices=("sync", "check"))
     parser.add_argument("source", type=Path)
     parser.add_argument("target", type=Path)
+    parser.add_argument("--manifest", type=Path)
     parser.add_argument("--report", type=Path)
     args = parser.parse_args()
 
     try:
+        template_names = (
+            load_catalog_manifest(args.manifest)
+            if args.manifest is not None
+            else None
+        )
+
         if args.command == "sync":
-            report = sync_catalog(args.source, args.target)
+            report = sync_catalog(args.source, args.target, template_names)
             if args.report:
                 args.report.write_text(
                     json.dumps(report, indent=2, sort_keys=True) + "\n",
@@ -155,8 +240,8 @@ def main() -> int:
             print(json.dumps(report, indent=2, sort_keys=True))
             return 0
 
-        check_catalog(args.source, args.target)
-    except (OSError, ValueError) as error:
+        check_catalog(args.source, args.target, template_names)
+    except (OSError, ValueError, json.JSONDecodeError) as error:
         parser.error(str(error))
 
     return 0
