@@ -85,6 +85,7 @@ def matrix(consumers: list[Consumer]) -> dict[str, list[dict[str, object]]]:
         "include": [
             {
                 "repository": consumer.repository,
+                "repository_name": consumer.repository.split("/", 1)[1],
                 "workflows": list(consumer.workflows),
             }
             for consumer in consumers
