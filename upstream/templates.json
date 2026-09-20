@@ -102,7 +102,7 @@
       "patches": [
         "patches/nextcloud/reuse.yml.patch"
       ],
-      "destination": "workflow-templates/reuse.yml"
+      "destination": ".github/workflows/reuse.yml"
     }
   ]
 }
