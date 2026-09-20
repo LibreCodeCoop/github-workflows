@@ -116,6 +116,15 @@
       "url": "https://raw.githubusercontent.com/nextcloud/.github/98dc00f32e5c4b85361a06a40c7f8d7d1c0a38f3/workflow-templates/reuse.yml",
       "sha256": "13133274d505be2d100b27637ccd893a24f9dea82cbf96483a1024138aacf5b3",
       "destination": "upstream/vendor/nextcloud/reuse.yml"
+    },
+    {
+      "name": "nextcloud-sync-workflow-templates",
+      "repository": "nextcloud/.github",
+      "ref": "master",
+      "path": "workflow-templates/sync-workflow-templates.yml",
+      "url": "https://raw.githubusercontent.com/nextcloud/.github/e137952600ed786d2dfd1bf928fadf92d295483c/workflow-templates/sync-workflow-templates.yml",
+      "sha256": "b1a49a5dbc35ca40a1485bed5f84ef042c6c738f5c81cb229035f24fd6dc0cf0",
+      "destination": "upstream/vendor/nextcloud/sync-workflow-templates.yml"
     }
   ]
 }

@@ -1,0 +1,70 @@
+--- upstream/vendor/nextcloud/sync-workflow-templates.yml
++++ workflow-templates/sync-workflow-templates.yml
+@@ -1,9 +1,9 @@
+ # This workflow is provided via the organization template repository
+ #
+-# https://github.com/nextcloud/.github
++# https://github.com/LibreCodeCoop/.github
+ # https://docs.github.com/en/actions/learn-github-actions/sharing-workflows-with-your-organization
+ #
+ # SPDX-FileCopyrightText: 2025 Nextcloud GmbH and Nextcloud contributors
+ # SPDX-License-Identifier: MIT
+ 
+ # This workflow will update all workflow templates
+@@ -42,12 +42,24 @@
+         with:
+           require: admin
+ 
++      - name: Create GitHub App token
++        id: app-token
++        uses: actions/create-github-app-token@67018539274d69449ef7c02e8e71183d1719ab42 # v2.1.4
++        with:
++          app-id: ${{ vars.LIBRECODE_WORKFLOW_APP_ID }}
++          private-key: ${{ secrets.LIBRECODE_WORKFLOW_APP_PRIVATE_KEY }}
++          owner: LibreCodeCoop
++          repositories: ${{ github.event.repository.name }}
++          permission-contents: write
++          permission-pull-requests: write
++          permission-workflows: write
++
+       - name: Checkout workflow repository
+         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+         with:
+           persist-credentials: false
+           path: source
+-          repository: nextcloud/.github
++          repository: LibreCodeCoop/.github
+ 
+       - name: Checkout app
+         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+@@ -78,7 +90,7 @@
+                   echo "ℹ️ Locked version: $locked_version"
+                   echo "ℹ️ Current version: $new_version"
+                   echo "🆙 Updating existing workflow: $filename"
+-                  echo "- 🆙 Updated [$filename](https://github.com/nextcloud/.github/commits/master/workflow-templates/$filename)" >> $GITHUB_ENV
++                  echo "- 🆙 Updated [$filename](https://github.com/LibreCodeCoop/.github/commits/main/workflow-templates/$filename)" >> $GITHUB_ENV
+ 
+                   cp "$workflow" "$target_file"
+ 
+@@ -123,10 +135,10 @@
+       - name: Create Pull Request
+         uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
+         with:
+-          token: ${{ secrets.COMMAND_BOT_WORKFLOWS }}
++          token: ${{ steps.app-token.outputs.token }}
+           commit-message: 'ci(actions): Update workflow templates from organization template repository'
+           committer: GitHub <noreply@github.com>
+-          author: nextcloud-command <nextcloud-command@users.noreply.github.com>
++          author: librecode-workflow-automation[bot] <331658022+librecode-workflow-automation[bot]@users.noreply.github.com>
+           path: target
+           signoff: true
+           branch: 'automated/noid/${{ matrix.branches }}-update-workflows'
+@@ -134,7 +146,7 @@
+           draft: ${{ env.DRAFT_ONLY == 1 }}
+           add-paths: .github/workflows/*.yml,.github/actions-lock.txt
+           body: |
+-            Automated update of all workflow templates from [nextcloud/.github](https://github.com/nextcloud/.github)
++            Automated update of all workflow templates from [LibreCodeCoop/.github](https://github.com/LibreCodeCoop/.github)
+             ${{ env.SUMMARY }}
+           labels: |
+             dependencies

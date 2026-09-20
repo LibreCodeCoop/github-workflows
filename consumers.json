@@ -1,21 +1,6 @@
 {
   "consumers": [
     {
-      "repository": "LibreCodeCoop/extract",
-      "workflows": [
-        "block-unconventional-commits.yml",
-        "lint-eslint.yml",
-        "lint-info-xml.yml",
-        "lint-php-cs.yml",
-        "lint-php.yml",
-        "lint-stylelint.yml",
-        "npm-build.yml",
-        "openapi.yml",
-        "psalm.yml",
-        "reuse.yml"
-      ]
-    },
-    {
       "repository": "LibreCodeCoop/profile_fields",
       "workflows": [
         "lint-info-xml.yml",
