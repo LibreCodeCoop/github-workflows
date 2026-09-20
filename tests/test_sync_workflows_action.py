@@ -99,8 +99,8 @@ class SyncWorkflowsActionTest(unittest.TestCase):
             target_file.write_text("old\n", encoding="utf-8")
             patch_file = target / ".github/workflows/sync.yml.patch"
             patch_file.write_text(
-                "--- .github/workflows/sync.yml\n"
-                "+++ .github/workflows/sync.yml\n"
+                "--- a/.github/workflows/sync.yml\n"
+                "+++ b/.github/workflows/sync.yml\n"
                 "@@ -1,2 +1,3 @@\n"
                 " branches:\n"
                 "   - default\n"
@@ -131,8 +131,8 @@ class SyncWorkflowsActionTest(unittest.TestCase):
             target_file.write_text("name: Old\n", encoding="utf-8")
             patch_file = target / ".github/workflows/sync.yml.patch"
             patch_file.write_text(
-                "--- .github/workflows/sync.yml\n"
-                "+++ .github/workflows/sync.yml\n"
+                "--- a/.github/workflows/sync.yml\n"
+                "+++ b/.github/workflows/sync.yml\n"
                 "@@ -1 +1 @@\n"
                 "-name: Missing\n"
                 "+name: Patched\n",
