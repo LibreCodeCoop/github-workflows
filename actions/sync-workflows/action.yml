@@ -23,6 +23,9 @@ outputs:
   patch_failed:
     description: Whether at least one local workflow patch failed to apply.
     value: ${{ steps.sync.outputs.patch_failed }}
+  blocked:
+    description: Whether synchronization was blocked by unmanaged local divergence.
+    value: ${{ steps.sync.outputs.blocked }}
   updated:
     description: JSON array of updated workflow names.
     value: ${{ steps.sync.outputs.updated }}
