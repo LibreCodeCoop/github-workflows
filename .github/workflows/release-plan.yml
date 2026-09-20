@@ -59,19 +59,6 @@ jobs:
           path: .github-workflows
           persist-credentials: false
 
-      - name: Validate blocker query input
-        env:
-          BLOCKER_QUERIES: ${{ inputs.blocker_queries }}
-        run: |
-          python3 - <<'PY'
-          import json
-          import os
-
-          queries = json.loads(os.environ["BLOCKER_QUERIES"])
-          if not isinstance(queries, list) or not all(isinstance(item, str) for item in queries):
-              raise SystemExit("blocker_queries must be a JSON array of strings")
-          PY
-
       - name: Build release plan
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -82,25 +69,16 @@ jobs:
           CHANGELOG_PATH: ${{ inputs.changelog_path }}
           MILESTONE: ${{ inputs.milestone }}
         run: |
-          args=(
-            --version "$RELEASE_VERSION"
-            --stable-branch "$STABLE_BRANCH"
-            --current-ref "$GITHUB_REF_NAME"
-            --repository "$GITHUB_REPOSITORY"
-            --appinfo "$APPINFO_PATH"
-            --changelog "$CHANGELOG_PATH"
+          python3 .github-workflows/scripts/release_plan.py \
+            --version "$RELEASE_VERSION" \
+            --stable-branch "$STABLE_BRANCH" \
+            --current-ref "$GITHUB_REF_NAME" \
+            --repository "$GITHUB_REPOSITORY" \
+            --appinfo "$APPINFO_PATH" \
+            --changelog "$CHANGELOG_PATH" \
+            --milestone "$MILESTONE" \
+            --blocker-queries-json "$BLOCKER_QUERIES" \
             --output release-plan.json
-          )
-
-          if [[ -n "$MILESTONE" ]]; then
-            args+=(--milestone "$MILESTONE")
-          fi
-
-          while IFS= read -r query; do
-            args+=(--blocker-query "$query")
-          done < <(python3 -c 'import json, os; [print(item) for item in json.loads(os.environ["BLOCKER_QUERIES"])]')
-
-          python3 .github-workflows/scripts/release_plan.py "${args[@]}"
 
       - name: Add plan summary
         if: always()
