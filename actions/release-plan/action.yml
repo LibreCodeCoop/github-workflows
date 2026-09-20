@@ -35,37 +35,13 @@ runs:
   using: composite
   steps:
     - name: Build release plan
+      shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
-        RELEASE_VERSION: ${{ inputs.version }}
-        STABLE_BRANCH: ${{ inputs.stable-branch }}
-        MILESTONE: ${{ inputs.milestone }}
-        BLOCKER_QUERIES: ${{ inputs.blocker-queries }}
-        APPINFO_PATH: ${{ inputs.appinfo-path }}
-        CHANGELOG_PATH: ${{ inputs.changelog-path }}
-      shell: bash
-      run: |
-        python3 "$GITHUB_ACTION_PATH/../../scripts/release_plan.py" \
-          --version "$RELEASE_VERSION" \
-          --stable-branch "$STABLE_BRANCH" \
-          --current-ref "$GITHUB_REF_NAME" \
-          --repository "$GITHUB_REPOSITORY" \
-          --appinfo "$APPINFO_PATH" \
-          --changelog "$CHANGELOG_PATH" \
-          --milestone "$MILESTONE" \
-          --blocker-queries-json "$BLOCKER_QUERIES" \
-          --output release-plan.json
-
-    - name: Add plan summary
-      if: always()
-      shell: bash
-      run: |
-        if [[ -f release-plan.json ]]; then
-          {
-            echo '## Release plan'
-            echo
-            echo '~~~json'
-            cat release-plan.json
-            echo '~~~'
-          } >> "$GITHUB_STEP_SUMMARY"
-        fi
+        RELEASE_PLAN_VERSION: ${{ inputs.version }}
+        RELEASE_PLAN_STABLE_BRANCH: ${{ inputs.stable-branch }}
+        RELEASE_PLAN_MILESTONE: ${{ inputs.milestone }}
+        RELEASE_PLAN_BLOCKER_QUERIES: ${{ inputs.blocker-queries }}
+        RELEASE_PLAN_APPINFO_PATH: ${{ inputs.appinfo-path }}
+        RELEASE_PLAN_CHANGELOG_PATH: ${{ inputs.changelog-path }}
+      run: python3 "$GITHUB_ACTION_PATH/../../scripts/release_plan.py"
