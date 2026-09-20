@@ -6,7 +6,7 @@
       "patches": [
         "patches/nextcloud/appstore-build-publish.yml.patch"
       ],
-      "destination": "templates/nextcloud/appstore-build-publish.yml"
+      "destination": "workflow-templates/appstore-build-publish.yml"
     }
   ]
 }
