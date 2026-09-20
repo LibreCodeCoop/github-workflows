@@ -57,6 +57,22 @@
       "destination": ".github/workflows/lint-stylelint.yml"
     },
     {
+      "name": "nextcloud-lint-typescript",
+      "source": "upstream/vendor/nextcloud/lint-typescript.yml",
+      "patches": [
+        "patches/nextcloud/lint-typescript.yml.patch"
+      ],
+      "destination": ".github/workflows/lint-typescript.yml"
+    },
+    {
+      "name": "nextcloud-node-test",
+      "source": "upstream/vendor/nextcloud/node-test.yml",
+      "patches": [
+        "patches/nextcloud/node-test.yml.patch"
+      ],
+      "destination": ".github/workflows/node-test.yml"
+    },
+    {
       "name": "nextcloud-npm-build",
       "source": "upstream/vendor/nextcloud/npm-build.yml",
       "patches": [
