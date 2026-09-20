@@ -1,0 +1,47 @@
+# SPDX-FileCopyrightText: 2026 LibreCode coop and contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+name: Nextcloud release plan
+description: Validate whether a Nextcloud app release is ready
+
+inputs:
+  version:
+    description: Release version in MAJOR.MINOR.PATCH form
+    required: true
+  stable-branch:
+    description: Stable branch that is allowed to release
+    required: true
+  milestone:
+    description: Milestone title that must be closed with no open issues
+    required: false
+    default: ''
+  blocker-queries:
+    description: JSON array of GitHub issue search fragments that must return zero open items
+    required: false
+    default: '[]'
+  appinfo-path:
+    description: Path to the Nextcloud app info.xml
+    required: false
+    default: appinfo/info.xml
+  changelog-path:
+    description: Path to the changelog
+    required: false
+    default: CHANGELOG.md
+  github-token:
+    description: GitHub token used for milestone and blocker checks
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Build release plan
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        RELEASE_PLAN_VERSION: ${{ inputs.version }}
+        RELEASE_PLAN_STABLE_BRANCH: ${{ inputs.stable-branch }}
+        RELEASE_PLAN_MILESTONE: ${{ inputs.milestone }}
+        RELEASE_PLAN_BLOCKER_QUERIES: ${{ inputs.blocker-queries }}
+        RELEASE_PLAN_APPINFO_PATH: ${{ inputs.appinfo-path }}
+        RELEASE_PLAN_CHANGELOG_PATH: ${{ inputs.changelog-path }}
+      run: python3 "$GITHUB_ACTION_PATH/../../scripts/release_plan.py"

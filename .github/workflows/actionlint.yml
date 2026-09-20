@@ -28,3 +28,8 @@ jobs:
         with:
           version: 1.7.12
           shellcheck: true
+          # actionlint does not support GitHub's $/ self-repository syntax yet.
+          # Remove this ignore when https://github.com/rhysd/actionlint/issues/711 is fixed.
+          flags: >-
+            -ignore
+            specifying.action.*\$/.*invalid.format.because.ref.is.missing
