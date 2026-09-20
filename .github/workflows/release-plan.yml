@@ -60,35 +60,12 @@ jobs:
           persist-credentials: false
 
       - name: Build release plan
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-          BLOCKER_QUERIES: ${{ inputs.blocker_queries }}
-          RELEASE_VERSION: ${{ inputs.version }}
-          STABLE_BRANCH: ${{ inputs.stable_branch }}
-          APPINFO_PATH: ${{ inputs.appinfo_path }}
-          CHANGELOG_PATH: ${{ inputs.changelog_path }}
-          MILESTONE: ${{ inputs.milestone }}
-        run: |
-          python3 .github-workflows/scripts/release_plan.py \
-            --version "$RELEASE_VERSION" \
-            --stable-branch "$STABLE_BRANCH" \
-            --current-ref "$GITHUB_REF_NAME" \
-            --repository "$GITHUB_REPOSITORY" \
-            --appinfo "$APPINFO_PATH" \
-            --changelog "$CHANGELOG_PATH" \
-            --milestone "$MILESTONE" \
-            --blocker-queries-json "$BLOCKER_QUERIES" \
-            --output release-plan.json
-
-      - name: Add plan summary
-        if: always()
-        run: |
-          if [[ -f release-plan.json ]]; then
-            {
-              echo '## Release plan'
-              echo
-              echo '~~~json'
-              cat release-plan.json
-              echo '~~~'
-            } >> "$GITHUB_STEP_SUMMARY"
-          fi
+        uses: ./.github-workflows/actions/release-plan
+        with:
+          version: ${{ inputs.version }}
+          stable-branch: ${{ inputs.stable_branch }}
+          milestone: ${{ inputs.milestone }}
+          blocker-queries: ${{ inputs.blocker_queries }}
+          appinfo-path: ${{ inputs.appinfo_path }}
+          changelog-path: ${{ inputs.changelog_path }}
+          github-token: ${{ github.token }}
