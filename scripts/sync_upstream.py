@@ -9,6 +9,7 @@ import hashlib
 import json
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
 
@@ -43,8 +44,7 @@ def load_sources(manifest_path: Path) -> list[Source]:
 
         if len(digest) != 64 or any(char not in "0123456789abcdef" for char in digest):
             raise ValueError(f"sources[{index}].sha256 must be 64 lowercase hex characters")
-        if "/refs/heads/" in url or url.endswith(("/main", "/master")):
-            raise ValueError(f"sources[{index}].url must be pinned to an immutable commit")
+        _validate_immutable_url(url, f"sources[{index}].url")
 
         sources.append(
             Source(
@@ -89,6 +89,24 @@ def check(sources: list[Source], root: Path) -> None:
 
     if drift:
         raise ValueError("generated templates are out of date: " + ", ".join(drift))
+
+
+def _validate_immutable_url(url: str, path: str) -> None:
+    parsed = urlparse(url)
+    if parsed.scheme != "https":
+        raise ValueError(f"{path} must use https")
+
+    if parsed.hostname == "raw.githubusercontent.com":
+        parts = [part for part in parsed.path.split("/") if part]
+        if len(parts) < 4:
+            raise ValueError(f"{path} is not a valid raw GitHub file URL")
+        revision = parts[2]
+        if len(revision) != 40 or any(
+            char not in "0123456789abcdefABCDEF" for char in revision
+        ):
+            raise ValueError(f"{path} must pin a 40-character Git commit SHA")
+    elif "/refs/heads/" in parsed.path:
+        raise ValueError(f"{path} must not reference a mutable branch")
 
 
 def _safe_destination(root: Path, destination: Path) -> Path:
