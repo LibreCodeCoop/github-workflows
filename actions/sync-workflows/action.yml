@@ -1,0 +1,46 @@
+# SPDX-FileCopyrightText: 2026 LibreCode coop and contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+name: Sync workflow templates
+description: Synchronize materialized workflow templates into a consumer repository and apply local patches.
+
+inputs:
+  source:
+    description: Directory containing organization workflow templates.
+    required: true
+  target:
+    description: Consumer repository checkout directory.
+    required: true
+  lock-file:
+    description: Lock file path relative to the consumer repository.
+    required: false
+    default: .github/actions-lock.txt
+
+outputs:
+  changed:
+    description: Whether at least one workflow was updated.
+    value: ${{ steps.sync.outputs.changed }}
+  patch-failed:
+    description: Whether at least one local workflow patch failed to apply.
+    value: ${{ steps.sync.outputs.patch_failed }}
+  updated:
+    description: JSON array of updated workflow names.
+    value: ${{ steps.sync.outputs.updated }}
+  failed:
+    description: JSON array of workflows whose local patch failed.
+    value: ${{ steps.sync.outputs.failed }}
+  summary-file:
+    description: Path to the generated Markdown summary file.
+    value: ${{ steps.sync.outputs.summary_file }}
+
+runs:
+  using: composite
+  steps:
+    - name: Synchronize workflows
+      id: sync
+      shell: bash
+      run: >-
+        python3 "${{ github.action_path }}/sync.py"
+        --source "${{ inputs.source }}"
+        --target "${{ inputs.target }}"
+        --lock-file "${{ inputs.lock-file }}"
