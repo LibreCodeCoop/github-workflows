@@ -162,8 +162,8 @@
 +        with:
 +          node-version: ${{ steps.versions.outputs.nodeVersion }}
 +
-+      - name: Set up npm ${{ steps.versions.outputs.npmVersion }}
-+        run: npm i -g 'npm@${{ steps.versions.outputs.npmVersion }}'
++      - name: Show npm version
++        run: npm --version
 +
 +      - name: Install dependencies
 +        env:
