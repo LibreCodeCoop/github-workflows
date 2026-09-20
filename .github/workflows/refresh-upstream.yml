@@ -131,7 +131,7 @@ jobs:
           add-paths: |
             upstream/sources.json
             upstream/vendor/**
-            templates/**
+            workflow-templates/**
 
       - name: Fail when patches need manual updates
         if: steps.render.outcome == 'failure'
