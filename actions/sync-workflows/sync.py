@@ -132,6 +132,10 @@ def sync(
 
     source_by_name = {path.name: path for path in workflow_files(source)}
 
+    stale_entries = sorted(set(entries) - set(source_by_name))
+    for name in stale_entries:
+        del entries[name]
+
     for name in sorted(entries):
         if name in source_by_name:
             target_file = target / ".github/workflows" / name
@@ -206,7 +210,7 @@ def sync(
         if not patch_ok:
             failed.append(name)
 
-    lock_changed = bool(updated or adopted)
+    lock_changed = bool(updated or adopted or stale_entries)
     if lock_changed:
         write_lock(lock_path, entries)
 
@@ -221,6 +225,7 @@ def sync(
         "failed": failed,
         "diverged": diverged,
         "details": details,
+        "removed_from_lock": stale_entries,
     }
 
 
