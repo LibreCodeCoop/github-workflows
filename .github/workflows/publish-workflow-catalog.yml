@@ -22,14 +22,30 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Validate workflow update token
+      - name: Validate GitHub App configuration
         env:
-          WORKFLOW_UPDATE_TOKEN: ${{ secrets.WORKFLOW_UPDATE_TOKEN }}
+          WORKFLOW_APP_ID: ${{ vars.LIBRECODE_WORKFLOW_APP_ID }}
+          WORKFLOW_APP_PRIVATE_KEY: ${{ secrets.LIBRECODE_WORKFLOW_APP_PRIVATE_KEY }}
         run: |
-          if [ -z "$WORKFLOW_UPDATE_TOKEN" ]; then
-            echo "::error::WORKFLOW_UPDATE_TOKEN is not configured. It must have access to the target repositories and permission to create/update pull requests."
+          if [ -z "$WORKFLOW_APP_ID" ]; then
+            echo "::error::LIBRECODE_WORKFLOW_APP_ID is not configured."
             exit 1
           fi
+          if [ -z "$WORKFLOW_APP_PRIVATE_KEY" ]; then
+            echo "::error::LIBRECODE_WORKFLOW_APP_PRIVATE_KEY is not configured."
+            exit 1
+          fi
+
+      - name: Create GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@67018539274d69449ef7c02e8e71183d1719ab42 # v2.1.4
+        with:
+          app-id: ${{ vars.LIBRECODE_WORKFLOW_APP_ID }}
+          private-key: ${{ secrets.LIBRECODE_WORKFLOW_APP_PRIVATE_KEY }}
+          owner: LibreCodeCoop
+          permission-contents: write
+          permission-pull-requests: write
+          permission-workflows: write
 
       - name: Checkout workflow source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -40,7 +56,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: LibreCodeCoop/.github
-          token: ${{ secrets.WORKFLOW_UPDATE_TOKEN }}
+          token: ${{ steps.app-token.outputs.token }}
           persist-credentials: false
           path: catalog
 
@@ -54,7 +70,7 @@ jobs:
       - name: Create catalog update pull request
         uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
         with:
-          token: ${{ secrets.WORKFLOW_UPDATE_TOKEN }}
+          token: ${{ steps.app-token.outputs.token }}
           path: catalog
           commit-message: 'chore: sync LibreCode workflow catalog'
           committer: GitHub <noreply@github.com>
