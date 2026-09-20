@@ -6,7 +6,12 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.sync_catalog import check_catalog, collect_publishable, sync_catalog
+from scripts.sync_catalog import (
+    check_catalog,
+    collect_publishable,
+    load_catalog_manifest,
+    sync_catalog,
+)
 
 
 class SyncCatalogTest(unittest.TestCase):
@@ -123,6 +128,57 @@ class SyncCatalogTest(unittest.TestCase):
                 existing.read_text(encoding="utf-8"),
                 "name: Published\n",
             )
+
+    def test_manifest_limits_catalog_to_approved_templates(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source"
+            target = root / "target"
+            self.write_template(source, "reuse")
+            self.write_template(source, "sensitive")
+
+            target.mkdir()
+            (target / "sensitive.yml").write_text(
+                "name: Published by mistake\n",
+                encoding="utf-8",
+            )
+            (target / "sensitive.properties.json").write_text(
+                '{"name":"Sensitive"}\n',
+                encoding="utf-8",
+            )
+
+            report = sync_catalog(source, target, ("reuse",))
+
+            self.assertTrue((target / "reuse.yml").is_file())
+            self.assertTrue((target / "reuse.properties.json").is_file())
+            self.assertFalse((target / "sensitive.yml").exists())
+            self.assertFalse((target / "sensitive.properties.json").exists())
+            self.assertEqual(
+                report["removed"],
+                ["sensitive.properties.json", "sensitive.yml"],
+            )
+
+    def test_load_catalog_manifest_rejects_duplicates(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            manifest = Path(directory) / "workflow-catalog.json"
+            manifest.write_text(
+                '{"templates":["reuse","reuse"]}\n',
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(ValueError, "duplicate template"):
+                load_catalog_manifest(manifest)
+
+    def test_manifest_requires_declared_template_to_exist(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory)
+            self.write_template(source, "reuse")
+
+            with self.assertRaisesRegex(
+                ValueError,
+                "exactly one workflow file: missing",
+            ):
+                collect_publishable(source, ("reuse", "missing"))
 
     def test_check_detects_drift(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
