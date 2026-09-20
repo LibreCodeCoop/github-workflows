@@ -9,6 +9,23 @@ The reusable release-plan workflow is intentionally non-mutating. It validates
 release prerequisites before any tag, GitHub Release, signing or App Store
 publication occurs.
 
+## Architecture
+
+The reusable workflow owns orchestration concerns: permissions, runner selection
+and checking out the caller plus the workflow tooling repository.
+
+The release-plan operation itself is exposed as the local composite action
+`actions/release-plan`. The action maps its declared inputs to a small,
+namespaced environment contract and invokes `scripts/release_plan.py`.
+
+Business rules, input parsing, GitHub API checks, exit status and step-summary
+rendering live in the Python script and are covered by unit tests. The workflow
+does not contain release decision logic.
+
+This follows GitHub's distinction between reusable workflows, which reuse whole
+workflow/job structures, and composite actions, which encapsulate a reusable
+sequence of steps within a job.
+
 ## Checks
 
 The first implementation validates:
