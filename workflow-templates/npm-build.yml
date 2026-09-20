@@ -13,4 +13,4 @@ permissions:
 
 jobs:
   npm-build:
-    uses: LibreCodeCoop/github-workflows/.github/workflows/npm-build.yml@3891d93c150cce4b7a21e2456bcf709e3e55ad89
+    uses: LibreCodeCoop/github-workflows/.github/workflows/npm-build.yml@bab6f01a48474e6b00feb71882be2f4dafe928fc
