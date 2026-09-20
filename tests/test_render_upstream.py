@@ -6,7 +6,14 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.render_upstream import check, load_templates, sync, write_report
+from scripts.render_upstream import (
+    check,
+    load_templates,
+    render_pull_request_body,
+    sync,
+    write_pull_request_body,
+    write_report,
+)
 
 
 class RenderUpstreamTest(unittest.TestCase):
@@ -167,6 +174,71 @@ class RenderUpstreamTest(unittest.TestCase):
 
             with self.assertRaisesRegex(ValueError, "unsafe path"):
                 load_templates(manifest)
+
+    def test_render_pull_request_body_for_successful_report(self) -> None:
+        body = render_pull_request_body(
+            {
+                "ok": True,
+                "updated": 1,
+                "unchanged": 1,
+                "failed": 0,
+                "templates": [
+                    {
+                        "name": "updated",
+                        "status": "updated",
+                        "destination": "workflow-templates/updated.yml",
+                        "patches": ["patches/updated.patch"],
+                    },
+                    {
+                        "name": "unchanged",
+                        "status": "unchanged",
+                        "destination": "workflow-templates/unchanged.yml",
+                        "patches": [],
+                    },
+                ],
+            }
+        )
+
+        self.assertIn("Updated templates: 1", body)
+        self.assertIn("✅ updated — updated", body)
+        self.assertIn("➖ unchanged — unchanged", body)
+        self.assertIn("- patches/updated.patch", body)
+
+    def test_render_pull_request_body_for_failed_patch(self) -> None:
+        body = render_pull_request_body(
+            {
+                "ok": False,
+                "updated": 0,
+                "unchanged": 0,
+                "failed": 1,
+                "templates": [
+                    {
+                        "name": "broken",
+                        "status": "failed",
+                        "destination": "workflow-templates/broken.yml",
+                        "patches": ["patches/broken.patch"],
+                        "error": "failed to apply patches/broken.patch",
+                    }
+                ],
+            }
+        )
+
+        self.assertIn("Failed templates: 1", body)
+        self.assertIn("❌ broken — failed", body)
+        self.assertIn("failed to apply patches/broken.patch", body)
+        self.assertIn("left unchanged", body)
+
+    def test_write_pull_request_body_without_report(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            report = Path(directory) / "missing.json"
+            output = Path(directory) / "body.md"
+
+            write_pull_request_body(report, output)
+
+            self.assertIn(
+                "No patch report was produced",
+                output.read_text(encoding="utf-8"),
+            )
 
 
 if __name__ == "__main__":
