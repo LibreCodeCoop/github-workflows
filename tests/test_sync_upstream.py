@@ -129,6 +129,26 @@ class SyncUpstreamTest(unittest.TestCase):
                 content,
             )
 
+    def test_sync_rejects_sha_mismatch_without_writing_destination(self) -> None:
+        expected = b"name: Expected\n"
+        downloaded = b"name: Unexpected\n"
+        source = Source(
+            name="workflow",
+            url="https://example.invalid/workflow.yml",
+            sha256=hashlib.sha256(expected).hexdigest(),
+            destination=Path("templates/workflow.yml"),
+        )
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            destination = root / "templates/workflow.yml"
+
+            with patch("scripts.sync_upstream._download", return_value=downloaded):
+                with self.assertRaisesRegex(ValueError, "SHA-256 mismatch"):
+                    sync([source], root)
+
+            self.assertFalse(destination.exists())
+
     def test_check_detects_drift(self) -> None:
         expected = b"name: Expected\n"
         source = Source(
