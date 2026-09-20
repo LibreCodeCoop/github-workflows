@@ -1,0 +1,111 @@
+# SPDX-FileCopyrightText: 2026 LibreCode coop and contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+name: Nextcloud release plan
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: Release version in MAJOR.MINOR.PATCH form
+        required: true
+        type: string
+      stable_branch:
+        description: Stable branch that is allowed to release
+        required: true
+        type: string
+      milestone:
+        description: Milestone title that must be closed with no open issues
+        required: false
+        type: string
+        default: ''
+      blocker_queries:
+        description: JSON array of GitHub issue search fragments that must return zero open items
+        required: false
+        type: string
+        default: '[]'
+      appinfo_path:
+        description: Path to the Nextcloud app info.xml
+        required: false
+        type: string
+        default: appinfo/info.xml
+      changelog_path:
+        description: Path to the changelog
+        required: false
+        type: string
+        default: CHANGELOG.md
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+jobs:
+  plan:
+    name: Release plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout caller
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Checkout workflow tooling
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: LibreCodeCoop/github-workflows
+          ref: ${{ github.workflow_sha }}
+          path: .github-workflows
+          persist-credentials: false
+
+      - name: Validate blocker query input
+        env:
+          BLOCKER_QUERIES: ${{ inputs.blocker_queries }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+
+          queries = json.loads(os.environ["BLOCKER_QUERIES"])
+          if not isinstance(queries, list) or not all(isinstance(item, str) for item in queries):
+              raise SystemExit("blocker_queries must be a JSON array of strings")
+          PY
+
+      - name: Build release plan
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          BLOCKER_QUERIES: ${{ inputs.blocker_queries }}
+        run: |
+          args=(
+            --version "${{ inputs.version }}"
+            --stable-branch "${{ inputs.stable_branch }}"
+            --current-ref "${GITHUB_REF_NAME}"
+            --repository "${GITHUB_REPOSITORY}"
+            --appinfo "${{ inputs.appinfo_path }}"
+            --changelog "${{ inputs.changelog_path }}"
+            --output release-plan.json
+          )
+
+          if [[ -n "${{ inputs.milestone }}" ]]; then
+            args+=(--milestone "${{ inputs.milestone }}")
+          fi
+
+          while IFS= read -r query; do
+            args+=(--blocker-query "$query")
+          done < <(python3 -c 'import json, os; [print(item) for item in json.loads(os.environ["BLOCKER_QUERIES"])]')
+
+          python3 .github-workflows/scripts/release_plan.py "${args[@]}"
+
+      - name: Add plan summary
+        if: always()
+        run: |
+          if [[ -f release-plan.json ]]; then
+            {
+              echo '## Release plan'
+              echo
+              echo '~~~json'
+              cat release-plan.json
+              echo '~~~'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
