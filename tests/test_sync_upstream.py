@@ -57,6 +57,28 @@ class SyncUpstreamTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "sha256"):
                 load_sources(manifest)
 
+    def test_rejects_mutable_raw_github_revision(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            manifest = Path(directory) / "sources.json"
+            manifest.write_text(
+                json.dumps(
+                    {
+                        "sources": [
+                            {
+                                "name": "workflow",
+                                "url": "https://raw.githubusercontent.com/example/project/master/workflow.yml",
+                                "sha256": "a" * 64,
+                                "destination": "templates/workflow.yml",
+                            }
+                        ]
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(ValueError, "40-character Git commit SHA"):
+                load_sources(manifest)
+
     def test_sync_writes_verified_content(self) -> None:
         content = b"name: Example\n"
         source = Source(
