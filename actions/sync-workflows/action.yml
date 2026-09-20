@@ -42,8 +42,13 @@ runs:
     - name: Synchronize workflows
       id: sync
       shell: bash
+      env:
+        SYNC_ACTION_PATH: ${{ github.action_path }}
+        SYNC_SOURCE: ${{ inputs.source }}
+        SYNC_TARGET: ${{ inputs.target }}
+        SYNC_LOCK_FILE: ${{ inputs.lock-file }}
       run: >-
-        python3 "${{ github.action_path }}/sync.py"
-        --source "${{ inputs.source }}"
-        --target "${{ inputs.target }}"
-        --lock-file "${{ inputs.lock-file }}"
+        python3 "$SYNC_ACTION_PATH/sync.py"
+        --source "$SYNC_SOURCE"
+        --target "$SYNC_TARGET"
+        --lock-file "$SYNC_LOCK_FILE"
