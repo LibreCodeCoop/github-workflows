@@ -3,13 +3,12 @@
 @@ -1,6 +1,6 @@
  # This workflow is provided via the organization template repository
  #
--# https://github.com/nextcloud/.github
 +# https://github.com/LibreCodeCoop/.github
+-# https://github.com/nextcloud/.github
  # https://docs.github.com/en/actions/learn-github-actions/sharing-workflows-with-your-organization
  #
  # SPDX-FileCopyrightText: 2025 Nextcloud GmbH and Nextcloud contributors
-@@ -24,10 +24,7 @@
-       fail-fast: false
+@@ -26,9 +26,6 @@
        matrix:
          branches:
            - ${{ github.event.repository.default_branch }}
@@ -40,15 +39,21 @@
          with:
            persist-credentials: false
            path: source
--          repository: nextcloud/.github
 +          repository: LibreCodeCoop/.github
+-          repository: nextcloud/.github
  
        - name: Checkout app
          uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-@@ -56,69 +65,13 @@
+@@ -56,86 +65,30 @@
            path: target
            ref: ${{ matrix.branches }}
  
++      - name: Synchronize workflow templates
++        id: sync
++        uses: LibreCodeCoop/github-workflows/actions/sync-workflows@999be909e0a8f39959cf1a91313de37cbc441ba2
++        with:
++          source: source/workflow-templates
++          target: target
 -      - name: Copy all workflow templates
 -        run: |
 -          echo 'SUMMARY<<EOF' >> $GITHUB_ENV
@@ -58,7 +63,7 @@
 -            if [ -f "$workflow" ]; then
 -              filename=$(basename "$workflow")
 -              target_file="./target/.github/workflows/$filename"
--
+ 
 -              # Only copy if the file exists in the target repository
 -              if [ -f "$target_file" ]; then
 -                if [ -f "./target/.github/actions-lock.txt" ]; then
@@ -112,35 +117,29 @@
 -          done
 -          echo 'EOF' >> $GITHUB_ENV
 -          echo "DRAFT_ONLY=${draft_only}" >> $GITHUB_ENV
-+      - name: Synchronize workflow templates
-+        id: sync
-+        uses: LibreCodeCoop/github-workflows/actions/sync-workflows@999be909e0a8f39959cf1a91313de37cbc441ba2
-+        with:
-+          source: source/workflow-templates
-+          target: target
- 
+-
        - name: Create Pull Request
 +        if: ${{ steps.sync.outputs.changed == 'true' }}
          uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
          with:
--          token: ${{ secrets.COMMAND_BOT_WORKFLOWS }}
 +          token: ${{ steps.app-token.outputs.token }}
+-          token: ${{ secrets.COMMAND_BOT_WORKFLOWS }}
            commit-message: 'ci(actions): Update workflow templates from organization template repository'
            committer: GitHub <noreply@github.com>
--          author: nextcloud-command <nextcloud-command@users.noreply.github.com>
 +          author: librecode-workflow-automation[bot] <331658022+librecode-workflow-automation[bot]@users.noreply.github.com>
+-          author: nextcloud-command <nextcloud-command@users.noreply.github.com>
            path: target
            signoff: true
            branch: 'automated/noid/${{ matrix.branches }}-update-workflows'
            title: '[${{ matrix.branches }}] ci(actions): Update workflow templates from organization template repository'
--          draft: ${{ env.DRAFT_ONLY == 1 }}
 +          draft: ${{ steps.sync.outputs.patch_failed == 'true' }}
+-          draft: ${{ env.DRAFT_ONLY == 1 }}
            add-paths: .github/workflows/*.yml,.github/actions-lock.txt
            body: |
--            Automated update of all workflow templates from [nextcloud/.github](https://github.com/nextcloud/.github)
--            ${{ env.SUMMARY }}
 +            Automated update of all workflow templates from [LibreCodeCoop/.github](https://github.com/LibreCodeCoop/.github)
 +            ${{ steps.sync.outputs.summary }}
+-            Automated update of all workflow templates from [nextcloud/.github](https://github.com/nextcloud/.github)
+-            ${{ env.SUMMARY }}
            labels: |
              dependencies
              3. to review
