@@ -14,7 +14,7 @@ from pathlib import Path
 
 LOCK_HEADER = (
     "# SPDX-FileCopyrightText: 2025 Nextcloud GmbH and Nextcloud contributors\n"
-    "# SPDX-License-Identifier: MIT\n"
+    "# SPDX-" + "License-Identifier: MIT\n"
 )
 
 
