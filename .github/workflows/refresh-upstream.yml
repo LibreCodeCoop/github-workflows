@@ -1,0 +1,58 @@
+# SPDX-FileCopyrightText: 2026 LibreCode coop and contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+name: Refresh upstream workflows
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 3 * * 0'
+
+permissions:
+  contents: read
+
+jobs:
+  refresh:
+    name: Refresh pinned upstream sources
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Refresh upstream pins
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 scripts/sync_upstream.py refresh upstream/sources.json
+
+      - name: Verify refreshed sources
+        run: |
+          python3 scripts/sync_upstream.py check upstream/sources.json
+          python3 -m unittest discover -s tests -p 'test_*.py'
+
+      - name: Create update pull request
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
+        with:
+          token: ${{ secrets.WORKFLOW_UPDATE_TOKEN }}
+          commit-message: 'chore: refresh upstream workflow pins'
+          committer: GitHub <noreply@github.com>
+          author: github-workflows bot <noreply@github.com>
+          signoff: true
+          branch: automated/refresh-upstream-workflows
+          delete-branch: true
+          title: 'chore: refresh upstream workflow pins'
+          body: |
+            Automated refresh of tracked upstream workflow sources.
+
+            The committed source URLs remain pinned to immutable commit SHAs and
+            SHA-256 hashes. Review upstream changes and any downstream patches
+            before merging.
+          labels: dependencies
+          add-paths: |
+            upstream/sources.json
+            upstream/vendor/**
