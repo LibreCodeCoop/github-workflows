@@ -65,7 +65,7 @@ def load_templates(manifest_path: Path) -> list[Template]:
 def render(template: Template, root: Path) -> bytes:
     source = _safe_path(root, template.source)
     if not source.is_file():
-        raise ValueError(f"{template.name}: source does not exist: {template.source}")
+        raise ValueError(f"source does not exist: {template.source}")
 
     with tempfile.TemporaryDirectory() as directory:
         working = Path(directory) / source.name
@@ -74,7 +74,7 @@ def render(template: Template, root: Path) -> bytes:
         for patch_path in template.patches:
             patch = _safe_path(root, patch_path)
             if not patch.is_file():
-                raise ValueError(f"{template.name}: patch does not exist: {patch_path}")
+                raise ValueError(f"patch does not exist: {patch_path}")
 
             result = subprocess.run(
                 ["patch", "--batch", "--forward", str(working), str(patch)],
@@ -84,31 +84,74 @@ def render(template: Template, root: Path) -> bytes:
             )
             if result.returncode != 0:
                 details = (result.stderr or result.stdout).strip()
-                raise ValueError(
-                    f"{template.name}: failed to apply {patch_path}: {details}"
-                )
+                raise ValueError(f"failed to apply {patch_path}: {details}")
 
         return working.read_bytes()
 
 
-def sync(templates: list[Template], root: Path) -> None:
+def sync(templates: list[Template], root: Path) -> dict[str, object]:
+    results: list[dict[str, object]] = []
+
     for template in templates:
-        content = render(template, root)
         destination = _safe_path(root, template.destination)
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        destination.write_bytes(content)
+        try:
+            content = render(template, root)
+            previous = destination.read_bytes() if destination.is_file() else None
+            changed = previous != content
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes(content)
+            results.append(
+                {
+                    "name": template.name,
+                    "status": "updated" if changed else "unchanged",
+                    "destination": str(template.destination),
+                    "patches": [str(path) for path in template.patches],
+                }
+            )
+        except ValueError as error:
+            results.append(
+                {
+                    "name": template.name,
+                    "status": "failed",
+                    "destination": str(template.destination),
+                    "patches": [str(path) for path in template.patches],
+                    "error": str(error),
+                }
+            )
+
+    counts = {
+        status: sum(1 for item in results if item["status"] == status)
+        for status in ("updated", "unchanged", "failed")
+    }
+    return {
+        "ok": counts["failed"] == 0,
+        **counts,
+        "templates": results,
+    }
 
 
 def check(templates: list[Template], root: Path) -> None:
-    drift: list[str] = []
+    problems: list[str] = []
     for template in templates:
-        expected = render(template, root)
+        try:
+            expected = render(template, root)
+        except ValueError as error:
+            problems.append(f"{template.name}: {error}")
+            continue
+
         destination = _safe_path(root, template.destination)
         if not destination.is_file() or destination.read_bytes() != expected:
-            drift.append(template.name)
+            problems.append(f"{template.name}: rendered template is out of date")
 
-    if drift:
-        raise ValueError("rendered templates are out of date: " + ", ".join(drift))
+    if problems:
+        raise ValueError("; ".join(problems))
+
+
+def write_report(report: dict[str, object], path: Path) -> None:
+    path.write_text(
+        json.dumps(report, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
 
 
 def _validate_relative_path(path: Path) -> None:
@@ -135,6 +178,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("command", choices=("sync", "check"))
     parser.add_argument("manifest", type=Path)
+    parser.add_argument("--report", type=Path)
     args = parser.parse_args()
 
     root = Path.cwd()
@@ -142,10 +186,14 @@ def main() -> int:
     try:
         templates = load_templates(args.manifest)
         if args.command == "sync":
-            sync(templates, root)
-        else:
-            check(templates, root)
-    except ValueError as error:
+            report = sync(templates, root)
+            if args.report:
+                write_report(report, args.report)
+            print(json.dumps(report, indent=2, sort_keys=True))
+            return 0 if report["ok"] else 1
+
+        check(templates, root)
+    except (OSError, ValueError) as error:
         parser.error(str(error))
 
     return 0
