@@ -31,12 +31,14 @@ reference consumers and upstream sources, not hard-coded engine concepts.
 
 ## Repository layout
 
-- `templates/` — generated or maintained reusable workflow templates.
+- `workflow-templates/` — generated GitHub-native organization workflow templates ready for catalog publication.
 - `upstream/` — immutable source manifests.
 - `patches/` — explicit downstream adaptations.
 - `scripts/` — deterministic synchronization/check tooling.
 - `tests/` — tests for synchronization and template behavior.
 - `docs/` — architecture, adoption and security guidance.
+
+`LibreCodeCoop/.github` is the organization catalog used by GitHub's **Actions → New workflow** UI. This repository remains the source of truth; catalog publication should mirror generated templates rather than make `.github` a second editing source.
 
 ## Development
 

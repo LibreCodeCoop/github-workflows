@@ -26,16 +26,35 @@ jobs:
           persist-credentials: false
 
       - name: Refresh upstream pins
+        id: refresh
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: python3 scripts/sync_upstream.py refresh upstream/sources.json
 
-      - name: Verify refreshed sources
+      - name: Verify refreshed immutable sources
+        run: python3 scripts/sync_upstream.py check upstream/sources.json
+
+      - name: Apply downstream patches
+        id: render
+        continue-on-error: true
         run: |
-          python3 scripts/sync_upstream.py check upstream/sources.json
-          python3 -m unittest discover -s tests -p 'test_*.py'
+          python3 scripts/render_upstream.py sync upstream/templates.json \
+            --report render-report.json
+
+      - name: Run unit tests
+        if: always()
+        run: python3 -m unittest discover -s tests -p 'test_*.py'
+
+      - name: Build pull request report
+        if: steps.refresh.outcome == 'success'
+        run: >-
+          python3 scripts/render_upstream.py pr-body
+          --report render-report.json
+          --output refresh-upstream-pr.md
 
       - name: Create update pull request
+        id: pull-request
+        if: steps.refresh.outcome == 'success'
         uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
         with:
           token: ${{ secrets.WORKFLOW_UPDATE_TOKEN }}
@@ -45,14 +64,17 @@ jobs:
           signoff: true
           branch: automated/refresh-upstream-workflows
           delete-branch: true
-          title: 'chore: refresh upstream workflow pins'
-          body: |
-            Automated refresh of tracked upstream workflow sources.
-
-            The committed source URLs remain pinned to immutable commit SHAs and
-            SHA-256 hashes. Review upstream changes and any downstream patches
-            before merging.
+          title: 'chore: refresh upstream workflows'
+          body-path: refresh-upstream-pr.md
+          draft: ${{ steps.render.outcome == 'failure' }}
           labels: dependencies
           add-paths: |
             upstream/sources.json
             upstream/vendor/**
+            workflow-templates/**
+
+      - name: Fail when patches need manual updates
+        if: steps.render.outcome == 'failure'
+        run: |
+          echo "One or more downstream patches could not be applied."
+          exit 1
