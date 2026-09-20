@@ -1,0 +1,62 @@
+# SPDX-FileCopyrightText: 2026 LibreCode coop and contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+name: Publish workflow catalog
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - 'workflow-templates/**'
+      - 'scripts/sync_catalog.py'
+      - '.github/workflows/publish-workflow-catalog.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Publish organization workflow catalog
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout workflow source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Checkout organization catalog
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: LibreCodeCoop/.github
+          token: ${{ secrets.WORKFLOW_UPDATE_TOKEN }}
+          persist-credentials: false
+          path: catalog
+
+      - name: Synchronize workflow catalog
+        run: >-
+          python3 scripts/sync_catalog.py sync
+          workflow-templates
+          catalog/workflow-templates
+          --report catalog-sync-report.json
+
+      - name: Create catalog update pull request
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
+        with:
+          token: ${{ secrets.WORKFLOW_UPDATE_TOKEN }}
+          path: catalog
+          commit-message: 'chore: sync LibreCode workflow catalog'
+          committer: GitHub <noreply@github.com>
+          author: github-workflows bot <noreply@github.com>
+          signoff: true
+          branch: automated/sync-workflow-catalog
+          delete-branch: true
+          title: 'chore: sync workflow catalog'
+          body: |
+            Automated synchronization from `LibreCodeCoop/github-workflows`.
+
+            The files in `workflow-templates/` are generated and validated in the source repository. Review this pull request before publishing the updated organization catalog.
+          add-paths: |
+            workflow-templates/**
