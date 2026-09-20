@@ -14,7 +14,7 @@
       "patches": [
         "patches/nextcloud/block-unconventional-commits.yml.patch"
       ],
-      "destination": ".github/workflows/block-unconventional-commits.yml"
+      "destination": "workflow-templates/block-unconventional-commits.yml"
     },
     {
       "name": "nextcloud-lint-eslint",
@@ -22,7 +22,7 @@
       "patches": [
         "patches/nextcloud/lint-eslint.yml.patch"
       ],
-      "destination": ".github/workflows/lint-eslint.yml"
+      "destination": "workflow-templates/lint-eslint.yml"
     },
     {
       "name": "nextcloud-lint-info-xml",
@@ -30,7 +30,7 @@
       "patches": [
         "patches/nextcloud/lint-info-xml.yml.patch"
       ],
-      "destination": ".github/workflows/lint-info-xml.yml"
+      "destination": "workflow-templates/lint-info-xml.yml"
     },
     {
       "name": "nextcloud-lint-php",
@@ -38,7 +38,7 @@
       "patches": [
         "patches/nextcloud/lint-php.yml.patch"
       ],
-      "destination": ".github/workflows/lint-php.yml"
+      "destination": "workflow-templates/lint-php.yml"
     },
     {
       "name": "nextcloud-lint-php-cs",
@@ -46,7 +46,7 @@
       "patches": [
         "patches/nextcloud/lint-php-cs.yml.patch"
       ],
-      "destination": ".github/workflows/lint-php-cs.yml"
+      "destination": "workflow-templates/lint-php-cs.yml"
     },
     {
       "name": "nextcloud-lint-stylelint",
@@ -54,7 +54,7 @@
       "patches": [
         "patches/nextcloud/lint-stylelint.yml.patch"
       ],
-      "destination": ".github/workflows/lint-stylelint.yml"
+      "destination": "workflow-templates/lint-stylelint.yml"
     },
     {
       "name": "nextcloud-lint-typescript",
@@ -62,7 +62,7 @@
       "patches": [
         "patches/nextcloud/lint-typescript.yml.patch"
       ],
-      "destination": ".github/workflows/lint-typescript.yml"
+      "destination": "workflow-templates/lint-typescript.yml"
     },
     {
       "name": "nextcloud-node-test",
@@ -70,7 +70,7 @@
       "patches": [
         "patches/nextcloud/node-test.yml.patch"
       ],
-      "destination": ".github/workflows/node-test.yml"
+      "destination": "workflow-templates/node-test.yml"
     },
     {
       "name": "nextcloud-npm-build",
@@ -78,7 +78,7 @@
       "patches": [
         "patches/nextcloud/npm-build.yml.patch"
       ],
-      "destination": ".github/workflows/npm-build.yml"
+      "destination": "workflow-templates/npm-build.yml"
     },
     {
       "name": "nextcloud-openapi",
@@ -86,7 +86,7 @@
       "patches": [
         "patches/nextcloud/openapi.yml.patch"
       ],
-      "destination": ".github/workflows/openapi.yml"
+      "destination": "workflow-templates/openapi.yml"
     },
     {
       "name": "nextcloud-psalm",
@@ -94,7 +94,7 @@
       "patches": [
         "patches/nextcloud/psalm.yml.patch"
       ],
-      "destination": ".github/workflows/psalm.yml"
+      "destination": "workflow-templates/psalm.yml"
     },
     {
       "name": "nextcloud-reuse",
@@ -102,15 +102,7 @@
       "patches": [
         "patches/nextcloud/reuse.yml.patch"
       ],
-      "destination": ".github/workflows/reuse.yml"
-    },
-    {
-      "name": "nextcloud-lint-eslint-template",
-      "source": "upstream/vendor/nextcloud/lint-eslint.yml",
-      "patches": [
-        "patches/nextcloud/lint-eslint-template.yml.patch"
-      ],
-      "destination": "workflow-templates/lint-eslint.yml"
+      "destination": "workflow-templates/reuse.yml"
     },
     {
       "name": "nextcloud-sync-workflow-templates",
