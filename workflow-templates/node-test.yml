@@ -1,0 +1,20 @@
+# SPDX-FileCopyrightText: 2026 LibreCode coop and contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+name: Node tests
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - master
+      - stable*
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  node-tests:
+    uses: LibreCodeCoop/github-workflows/.github/workflows/node-test.yml@cedd15d4962e3194f35639deda66069c469bb794
