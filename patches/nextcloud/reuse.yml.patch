@@ -10,7 +10,8 @@
  # https://docs.github.com/en/actions/learn-github-actions/sharing-workflows-with-your-organization
  
  # SPDX-FileCopyrightText: 2022 Free Software Foundation Europe e.V. <https://fsfe.org>
-@@ -16,7 +17,7 @@
+@@ -15,7 +16,7 @@
+ 
  jobs:
    reuse-compliance-check:
 -    runs-on: ubuntu-latest-low
