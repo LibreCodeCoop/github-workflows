@@ -7,9 +7,10 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 from dataclasses import dataclass
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import quote, urlparse
 from urllib.request import Request, urlopen
 
 
@@ -19,6 +20,9 @@ class Source:
     url: str
     sha256: str
     destination: Path
+    repository: str | None = None
+    ref: str | None = None
+    path: str | None = None
 
 
 def load_sources(manifest_path: Path) -> list[Source]:
@@ -46,12 +50,26 @@ def load_sources(manifest_path: Path) -> list[Source]:
             raise ValueError(f"sources[{index}].sha256 must be 64 lowercase hex characters")
         _validate_immutable_url(url, f"sources[{index}].url")
 
+        repository = _optional_string(raw.get("repository"), f"sources[{index}].repository")
+        ref = _optional_string(raw.get("ref"), f"sources[{index}].ref")
+        path = _optional_string(raw.get("path"), f"sources[{index}].path")
+        tracking = (repository, ref, path)
+        if any(value is not None for value in tracking) and not all(
+            value is not None for value in tracking
+        ):
+            raise ValueError(
+                f"sources[{index}] must define repository, ref and path together"
+            )
+
         sources.append(
             Source(
                 name=name,
                 url=url,
                 sha256=digest,
                 destination=Path(destination),
+                repository=repository,
+                ref=ref,
+                path=path,
             )
         )
 
@@ -59,10 +77,7 @@ def load_sources(manifest_path: Path) -> list[Source]:
 
 
 def fetch(source: Source) -> bytes:
-    request = Request(source.url, headers={"User-Agent": "github-workflows-sync"})
-    with urlopen(request, timeout=30) as response:
-        content = response.read()
-
+    content = _download(source.url)
     actual = hashlib.sha256(content).hexdigest()
     if actual != source.sha256:
         raise ValueError(
@@ -89,6 +104,78 @@ def check(sources: list[Source], root: Path) -> None:
 
     if drift:
         raise ValueError("generated templates are out of date: " + ", ".join(drift))
+
+
+def refresh(manifest_path: Path, root: Path, token: str | None = None) -> None:
+    payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    raw_sources = payload.get("sources")
+    if not isinstance(raw_sources, list):
+        raise ValueError("manifest.sources must be an array")
+
+    # Validate the current manifest before mutating it.
+    load_sources(manifest_path)
+
+    for index, raw in enumerate(raw_sources):
+        if not isinstance(raw, dict):
+            raise ValueError(f"manifest.sources[{index}] must be an object")
+
+        repository = raw.get("repository")
+        ref = raw.get("ref")
+        path = raw.get("path")
+        if not all(isinstance(value, str) and value for value in (repository, ref, path)):
+            continue
+
+        commit = _latest_commit(repository, ref, path, token)
+        url = f"https://raw.githubusercontent.com/{repository}/{commit}/{path}"
+        content = _download(url)
+        digest = hashlib.sha256(content).hexdigest()
+
+        raw["url"] = url
+        raw["sha256"] = digest
+
+        destination = _safe_destination(root, Path(str(raw["destination"])))
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes(content)
+
+    manifest_path.write_text(
+        json.dumps(payload, indent=2, sort_keys=False) + "\n",
+        encoding="utf-8",
+    )
+
+
+def _latest_commit(repository: str, ref: str, path: str, token: str | None) -> str:
+    url = (
+        f"https://api.github.com/repos/{repository}/commits"
+        f"?sha={quote(ref, safe='')}&path={quote(path, safe='')}&per_page=1"
+    )
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "User-Agent": "github-workflows-sync",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+
+    request = Request(url, headers=headers)
+    with urlopen(request, timeout=30) as response:
+        payload = json.load(response)
+
+    if not isinstance(payload, list) or not payload:
+        raise ValueError(
+            f"cannot resolve latest commit for {repository}:{ref}:{path}"
+        )
+    commit = payload[0].get("sha")
+    if not isinstance(commit, str) or len(commit) != 40:
+        raise ValueError(
+            f"invalid commit returned for {repository}:{ref}:{path}"
+        )
+    return commit
+
+
+def _download(url: str) -> bytes:
+    request = Request(url, headers={"User-Agent": "github-workflows-sync"})
+    with urlopen(request, timeout=30) as response:
+        return response.read()
 
 
 def _validate_immutable_url(url: str, path: str) -> None:
@@ -125,20 +212,35 @@ def _non_empty_string(value: object, path: str) -> str:
     return value
 
 
+def _optional_string(value: object, path: str) -> str | None:
+    if value is None:
+        return None
+    if not isinstance(value, str) or not value:
+        raise ValueError(f"{path} must be a non-empty string when defined")
+    return value
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=("sync", "check"))
+    parser.add_argument("command", choices=("sync", "check", "refresh"))
     parser.add_argument("manifest", type=Path)
     args = parser.parse_args()
 
     root = Path.cwd()
-    sources = load_sources(args.manifest)
 
     try:
-        if args.command == "sync":
-            sync(sources, root)
+        if args.command == "refresh":
+            refresh(
+                args.manifest,
+                root,
+                token=os.environ.get("GITHUB_TOKEN"),
+            )
         else:
-            check(sources, root)
+            sources = load_sources(args.manifest)
+            if args.command == "sync":
+                sync(sources, root)
+            else:
+                check(sources, root)
     except ValueError as error:
         parser.error(str(error))
 
