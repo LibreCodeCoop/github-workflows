@@ -51,16 +51,8 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Checkout workflow tooling
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          repository: LibreCodeCoop/github-workflows
-          ref: ${{ github.workflow_sha }}
-          path: .github-workflows
-          persist-credentials: false
-
       - name: Build release plan
-        uses: ./.github-workflows/actions/release-plan
+        uses: $/actions/release-plan
         with:
           version: ${{ inputs.version }}
           stable-branch: ${{ inputs.stable_branch }}
