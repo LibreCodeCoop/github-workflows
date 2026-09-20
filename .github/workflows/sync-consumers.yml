@@ -63,10 +63,12 @@ jobs:
         id: sync
         continue-on-error: true
         working-directory: source
+        env:
+          CONSUMER_REPOSITORY: ${{ matrix.repository }}
         run: >-
           python3 scripts/sync_consumer.py sync
           consumers.json
-          "${{ matrix.repository }}"
+          "$CONSUMER_REPOSITORY"
           workflow-templates
           ../target
           --report "../consumer-sync-report.json"
