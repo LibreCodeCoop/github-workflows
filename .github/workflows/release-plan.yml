@@ -6,34 +6,60 @@ name: Nextcloud release plan
 on:
   workflow_call:
     inputs:
-      version:
-        description: Release version in MAJOR.MINOR.PATCH form
+      branch:
+        description: Release branch to plan.
         required: true
         type: string
-      stable_branch:
-        description: Stable branch that is allowed to release
-        required: true
-        type: string
-      milestone:
-        description: Milestone title that must be closed with no open issues
+      ref:
+        description: Optional planning ref or commit SHA.
         required: false
         type: string
         default: ''
-      blocker_queries:
-        description: JSON array of GitHub issue search fragments that must return zero open items
+      version:
+        description: Optional explicit release version override.
         required: false
         type: string
-        default: '[]'
-      appinfo_path:
-        description: Path to the Nextcloud app info.xml
+        default: ''
+      channel:
+        description: Release channel (alpha, beta, rc or final).
         required: false
         type: string
-        default: appinfo/info.xml
-      changelog_path:
-        description: Path to the changelog
+        default: final
+      mode:
+        description: Release mode (normal or security).
         required: false
         type: string
-        default: CHANGELOG.md
+        default: normal
+      safe_public_text:
+        description: Optional explicitly public-safe release text.
+        required: false
+        type: string
+        default: ''
+      ignore_open_backport:
+        description: Explicitly override matching open backport blockers.
+        required: false
+        type: boolean
+        default: false
+      create_follow_up_milestone:
+        description: Request follow-up milestone creation in a later stage.
+        required: false
+        type: boolean
+        default: false
+      config_path:
+        description: Consumer release configuration path.
+        required: false
+        type: string
+        default: .nextcloud-release.yml
+    outputs:
+      plan:
+        description: ReleasePlan v1 JSON.
+        value: ${{ jobs.plan.outputs.plan }}
+      ready:
+        description: Whether the release is ready for the next stage.
+        value: ${{ jobs.plan.outputs.ready }}
+      tool_version:
+        description: Exact release-tool version used for planning.
+        value: ${{ jobs.plan.outputs.tool_version }}
 
 permissions:
   contents: read
@@ -45,19 +71,28 @@ jobs:
     name: Release plan
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    outputs:
+      plan: ${{ steps.release-plan.outputs.plan }}
+      ready: ${{ steps.release-plan.outputs.ready }}
+      tool_version: ${{ steps.release-plan.outputs.tool-version }}
     steps:
-      - name: Checkout caller
+      - name: Checkout caller with release history
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: 0
 
-      - name: Build release plan
+      - id: release-plan
+        name: Build release plan
         uses: $/actions/release-plan
         with:
+          branch: ${{ inputs.branch }}
+          ref: ${{ inputs.ref }}
           version: ${{ inputs.version }}
-          stable-branch: ${{ inputs.stable_branch }}
-          milestone: ${{ inputs.milestone }}
-          blocker-queries: ${{ inputs.blocker_queries }}
-          appinfo-path: ${{ inputs.appinfo_path }}
-          changelog-path: ${{ inputs.changelog_path }}
+          channel: ${{ inputs.channel }}
+          mode: ${{ inputs.mode }}
+          safe-public-text: ${{ inputs.safe_public_text }}
+          ignore-open-backport: ${{ inputs.ignore_open_backport }}
+          create-follow-up-milestone: ${{ inputs.create_follow_up_milestone }}
+          config-path: ${{ inputs.config_path }}
           github-token: ${{ github.token }}
