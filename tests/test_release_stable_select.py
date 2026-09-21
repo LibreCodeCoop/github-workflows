@@ -1,9 +1,19 @@
 # SPDX-FileCopyrightText: 2026 LibreCode coop and contributors
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import importlib.util
 import unittest
+from pathlib import Path
 
-from actions.release_stable_select.resolve import parse_stable_refs, resolve_state
+ROOT = Path(__file__).resolve().parents[1]
+MODULE_PATH = ROOT / "actions" / "release-stable-select" / "resolve.py"
+SPEC = importlib.util.spec_from_file_location("release_stable_select", MODULE_PATH)
+assert SPEC is not None and SPEC.loader is not None
+MODULE = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(MODULE)
+
+parse_stable_refs = MODULE.parse_stable_refs
+resolve_state = MODULE.resolve_state
 
 
 class ReleaseStableSelectTest(unittest.TestCase):
