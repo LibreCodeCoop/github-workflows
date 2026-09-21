@@ -5,8 +5,9 @@ name: Setup release-tool
 description: Install an exact LibreCode release-tool PHAR release and verify its published SHA-256.
 inputs:
   version:
-    description: Exact release-tool semantic version, without a leading v.
-    required: true
+    description: Optional exact release-tool semantic version override, without a leading v.
+    required: false
+    default: ''
 outputs:
   path:
     description: Absolute path to the verified release-tool PHAR.
