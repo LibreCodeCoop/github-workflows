@@ -14,7 +14,7 @@ class ReleasePlanActionTest(unittest.TestCase):
         content = ACTION.read_text(encoding="utf-8")
 
         self.assertIn("uses: $/actions/setup-release-tool", content)
-        self.assertIn("version: '0.2.0'", content)
+        self.assertNotIn("with:\n        version:", content)
         self.assertIn("release:plan", content)
         self.assertIn("--release-version", content)
         self.assertNotIn("python3", content)

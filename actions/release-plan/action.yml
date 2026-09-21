@@ -61,8 +61,6 @@ runs:
     - id: setup
       name: Setup release-tool
       uses: $/actions/setup-release-tool
-      with:
-        version: '0.2.0'
 
     - id: plan
       name: Build ReleasePlan v1

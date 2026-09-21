@@ -4,7 +4,11 @@
 
 set -euo pipefail
 
-version="${RELEASE_TOOL_VERSION:?release-tool version is required}"
+version="${RELEASE_TOOL_VERSION:-}"
+if [[ -z "${version}" ]]; then
+	version_file="${GITHUB_ACTION_PATH:?github action path is required}/release-tool-version"
+	version="$(tr -d '[:space:]' < "${version_file}")"
+fi
 
 if [[ ! "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
 	echo "::error::release-tool version must be an exact semantic version, got '${version}'"
