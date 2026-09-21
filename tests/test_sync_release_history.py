@@ -71,10 +71,12 @@ class SyncReleaseHistoryTest(unittest.TestCase):
             self.assertIn("AGPL-3.0-or-later", (docs / "developer_manual/release-history/15/index.rst").read_text(encoding="utf-8"))
 
     def test_versions_sort_semantically(self) -> None:
-        versions = ["15.9.0", "15.10.0", "15.10.0-rc.1", "15.2.4"]
+        versions = ["15.9.0", "15.10.0", "15.10.0-rc.2", "15.10.0-rc.10", "15.10.0-beta.12", "15.2.4"]
         rendered = module.render_major_index(15, versions)
-        self.assertLess(rendered.index("15.10.0\n"), rendered.index("15.10.0-rc.1\n"))
-        self.assertLess(rendered.index("15.10.0-rc.1\n"), rendered.index("15.9.0\n"))
+        self.assertLess(rendered.index("15.10.0\n"), rendered.index("15.10.0-rc.10\n"))
+        self.assertLess(rendered.index("15.10.0-rc.10\n"), rendered.index("15.10.0-rc.2\n"))
+        self.assertLess(rendered.index("15.10.0-rc.2\n"), rendered.index("15.10.0-beta.12\n"))
+        self.assertLess(rendered.index("15.10.0-beta.12\n"), rendered.index("15.9.0\n"))
 
 
 if __name__ == "__main__":
