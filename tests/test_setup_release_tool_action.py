@@ -102,9 +102,11 @@ class SetupReleaseToolActionTest(unittest.TestCase):
     def test_default_version_is_centralized_in_action_directory(self) -> None:
         result, output, path_file = self.run_script(None, fake_download=True)
 
+        expected_version = VERSION.read_text(encoding="utf-8").strip()
+
         self.assertEqual(0, result.returncode, result.stderr)
-        self.assertIn("version=0.7.0", output)
-        self.assertIn("librecode-release-tool/0.7.0", path_file)
+        self.assertIn(f"version={expected_version}", output)
+        self.assertIn(f"librecode-release-tool/{expected_version}", path_file)
 
     def test_rejects_latest_before_network_access(self) -> None:
         result, _, _ = self.run_script("latest")
@@ -153,7 +155,7 @@ class SetupReleaseToolActionTest(unittest.TestCase):
         self.assertIn("releases/download/v${version}", content)
         self.assertIn("release-tool.phar.sha256", content)
         self.assertIn("sha256sum", content)
-        self.assertEqual("0.7.0", VERSION.read_text(encoding="utf-8").strip())
+        self.assertRegex(VERSION.read_text(encoding="utf-8").strip(), r"^\d+\.\d+\.\d+$")
 
 
 if __name__ == "__main__":
