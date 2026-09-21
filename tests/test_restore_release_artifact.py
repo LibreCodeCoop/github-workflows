@@ -51,6 +51,19 @@ class RestoreReleaseArtifactTest(unittest.TestCase):
             module.safe_extract_zip(buffer.getvalue(), destination)
             self.assertEqual("{}", (destination / "release-plan.json").read_text(encoding="utf-8"))
 
+    def test_validates_originating_workflow(self) -> None:
+        module.validate_workflow_run(
+            {"event": "workflow_dispatch", "path": ".github/workflows/prepare-release.yml"},
+            "workflow_dispatch",
+            ".github/workflows/prepare-release.yml",
+        )
+        with self.assertRaisesRegex(RuntimeError, "does not match"):
+            module.validate_workflow_run(
+                {"event": "pull_request", "path": ".github/workflows/tests.yml"},
+                "workflow_dispatch",
+                ".github/workflows/prepare-release.yml",
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

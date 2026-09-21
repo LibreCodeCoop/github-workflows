@@ -81,12 +81,23 @@ def request_bytes(url: str, token: str) -> bytes:
         return response.read()
 
 
+def validate_workflow_run(payload: object, expected_event: str | None, expected_workflow_path: str | None) -> None:
+    if not isinstance(payload, dict):
+        raise RuntimeError("GitHub returned an invalid workflow run")
+    if expected_event and payload.get("event") != expected_event:
+        raise RuntimeError(f"artifact workflow event {payload.get('event')!r} does not match {expected_event!r}")
+    if expected_workflow_path and payload.get("path") != expected_workflow_path:
+        raise RuntimeError(f"artifact workflow path {payload.get('path')!r} does not match {expected_workflow_path!r}")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--repository", required=True)
     parser.add_argument("--name", required=True)
     parser.add_argument("--expected-head-sha", default="")
     parser.add_argument("--destination", required=True, type=Path)
+    parser.add_argument("--expected-event", default="")
+    parser.add_argument("--expected-workflow-path", default="")
     parser.add_argument("--api-url", default=os.environ.get("GITHUB_API_URL", "https://api.github.com"))
     args = parser.parse_args()
 
@@ -103,14 +114,24 @@ def main() -> int:
         args.name,
         args.expected_head_sha or None,
     )
+    workflow_run = artifact.get("workflow_run")
+    run_id = workflow_run.get("id") if isinstance(workflow_run, dict) else None
+    if args.expected_event or args.expected_workflow_path:
+        if not isinstance(run_id, int):
+            parser.error("GitHub returned an artifact without workflow run identity")
+        run_url = f"{args.api_url.rstrip('/')}/repos/{args.repository}/actions/runs/{run_id}"
+        validate_workflow_run(
+            request_json(run_url, token),
+            args.expected_event or None,
+            args.expected_workflow_path or None,
+        )
+
     archive_url = artifact.get("archive_download_url")
     if not isinstance(archive_url, str) or archive_url == "":
         parser.error("GitHub returned an artifact without archive_download_url")
 
     safe_extract_zip(request_bytes(archive_url, token), args.destination)
 
-    workflow_run = artifact.get("workflow_run")
-    run_id = workflow_run.get("id") if isinstance(workflow_run, dict) else None
     print(json.dumps({
         "artifact_id": artifact.get("id"),
         "workflow_run_id": run_id,

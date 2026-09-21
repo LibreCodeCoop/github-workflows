@@ -1,0 +1,216 @@
+# SPDX-FileCopyrightText: 2026 LibreCode coop and contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+name: Finalize merged release
+description: Restore ReleasePreparation v1, authorize the merger, finalize the release, transition milestones and create the GitHub Release draft.
+
+inputs:
+  pull-request-number:
+    description: Merged generated release PR number.
+    required: true
+  merger:
+    description: GitHub login reported by pull_request.merged_by.
+    required: true
+  config-path:
+    description: Consumer release configuration path.
+    required: false
+    default: .nextcloud-release.yml
+  prepare-workflow-path:
+    description: Consumer workflow path that produced the release preparation artifact.
+    required: false
+    default: .github/workflows/prepare-release.yml
+  github-token:
+    description: Caller token used for artifact restore and permission lookup.
+    required: true
+  app-id:
+    description: GitHub App id used for short-lived mutation tokens.
+    required: true
+  app-private-key:
+    description: GitHub App private key used for short-lived mutation tokens.
+    required: true
+
+outputs:
+  prepared-release-id:
+    description: PreparedRelease v1 id.
+    value: ${{ steps.finalize.outputs.prepared-release-id }}
+  release-draft-id:
+    description: ReleaseDraft v1 id.
+    value: ${{ steps.draft.outputs.release-draft-id }}
+  github-release-id:
+    description: GitHub Release id.
+    value: ${{ steps.draft.outputs.github-release-id }}
+  github-release-url:
+    description: GitHub Release draft URL.
+    value: ${{ steps.draft.outputs.github-release-url }}
+  state-artifact-name:
+    description: Deterministic artifact carrying finalized release state.
+    value: ${{ steps.draft.outputs.state-artifact-name }}
+
+runs:
+  using: composite
+  steps:
+    - id: restore
+      name: Restore preparation contracts
+      uses: $/actions/restore-release-artifact
+      with:
+        repository: ${{ github.repository }}
+        artifact-name: release-preparation-pr-${{ inputs.pull-request-number }}
+        destination: ${{ runner.temp }}/release-post-merge-state
+        github-token: ${{ inputs.github-token }}
+        expected-event: workflow_dispatch
+        expected-workflow-path: ${{ inputs.prepare-workflow-path }}
+
+    - id: setup
+      name: Setup release-tool
+      uses: $/actions/setup-release-tool
+
+    - id: authorization-config
+      name: Read merge authorization policy
+      shell: bash
+      env:
+        RELEASE_TOOL_PATH: ${{ steps.setup.outputs.path }}
+        RELEASE_CONFIG_PATH: ${{ inputs.config-path }}
+      run: |
+        set -euo pipefail
+        config_file="${RUNNER_TEMP}/release-post-merge-config.json"
+        php "${RELEASE_TOOL_PATH}" config:validate --config "${RELEASE_CONFIG_PATH}" --root . --json > "${config_file}"
+        minimum_permission="$(php -r '$c=json_decode(file_get_contents($argv[1]),true,512,JSON_THROW_ON_ERROR); echo $c["authorization"]["merge_min_permission"];' "${config_file}")"
+        echo "minimum-permission=${minimum_permission}" >> "${GITHUB_OUTPUT}"
+
+    - name: Authorize release PR merger
+      uses: $/actions/check-release-authorization
+      with:
+        repository: ${{ github.repository }}
+        actor: ${{ inputs.merger }}
+        minimum-permission: ${{ steps.authorization-config.outputs.minimum-permission }}
+        github-token: ${{ inputs.github-token }}
+
+    - id: repository
+      name: Resolve repository identity
+      shell: bash
+      env:
+        RELEASE_REPOSITORY: ${{ github.repository }}
+      run: |
+        set -euo pipefail
+        echo "owner=${RELEASE_REPOSITORY%%/*}" >> "${GITHUB_OUTPUT}"
+        echo "name=${RELEASE_REPOSITORY#*/}" >> "${GITHUB_OUTPUT}"
+
+    - id: finalization-token
+      name: Create finalization token
+      uses: actions/create-github-app-token@67018539274d69449ef7c02e8e71183d1719ab42 # v2.1.4
+      with:
+        app-id: ${{ inputs.app-id }}
+        private-key: ${{ inputs.app-private-key }}
+        owner: ${{ steps.repository.outputs.owner }}
+        repositories: ${{ steps.repository.outputs.name }}
+        permission-contents: write
+        permission-pull-requests: write
+
+    - id: finalize
+      name: Revalidate merged release and synchronize aggregate history
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ steps.finalization-token.outputs.token }}
+        RELEASE_TOOL_PATH: ${{ steps.setup.outputs.path }}
+        RELEASE_CONFIG_PATH: ${{ inputs.config-path }}
+        RELEASE_STATE_DIR: ${{ runner.temp }}/release-post-merge-state
+      run: |
+        set -euo pipefail
+        php "${RELEASE_TOOL_PATH}" release:finalize \
+          --preparation "${RELEASE_STATE_DIR}/release-preparation.json" \
+          --config "${RELEASE_CONFIG_PATH}" \
+          --root . \
+          --apply-history-sync \
+          --json \
+          > "${RELEASE_STATE_DIR}/prepared-release.json"
+        prepared_id="$(php -r '$p=json_decode(file_get_contents($argv[1]),true,512,JSON_THROW_ON_ERROR); echo $p["id"];' "${RELEASE_STATE_DIR}/prepared-release.json")"
+        echo "prepared-release-id=${prepared_id}" >> "${GITHUB_OUTPUT}"
+
+    - id: milestone-token
+      name: Create milestone token
+      uses: actions/create-github-app-token@67018539274d69449ef7c02e8e71183d1719ab42 # v2.1.4
+      with:
+        app-id: ${{ inputs.app-id }}
+        private-key: ${{ inputs.app-private-key }}
+        owner: ${{ steps.repository.outputs.owner }}
+        repositories: ${{ steps.repository.outputs.name }}
+        permission-issues: write
+
+    - id: milestone
+      name: Apply milestone transition
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ steps.milestone-token.outputs.token }}
+        RELEASE_TOOL_PATH: ${{ steps.setup.outputs.path }}
+        RELEASE_CONFIG_PATH: ${{ inputs.config-path }}
+        RELEASE_STATE_DIR: ${{ runner.temp }}/release-post-merge-state
+      run: |
+        set -euo pipefail
+        create_follow_up="$(php -r '$p=json_decode(file_get_contents($argv[1]),true,512,JSON_THROW_ON_ERROR); echo !empty($p["create_follow_up_milestone"]) ? "true" : "false";' "${RELEASE_STATE_DIR}/release-plan.json")"
+        args=(
+          milestone:transition
+          --prepared "${RELEASE_STATE_DIR}/prepared-release.json"
+          --config "${RELEASE_CONFIG_PATH}"
+          --root .
+          --apply
+          --json
+        )
+        if [[ "${create_follow_up}" == "true" ]]; then
+          args+=(--create-follow-up)
+        fi
+        php "${RELEASE_TOOL_PATH}" "${args[@]}" > "${RELEASE_STATE_DIR}/milestone-transition.json"
+
+    - id: draft-token
+      name: Create release draft token
+      uses: actions/create-github-app-token@67018539274d69449ef7c02e8e71183d1719ab42 # v2.1.4
+      with:
+        app-id: ${{ inputs.app-id }}
+        private-key: ${{ inputs.app-private-key }}
+        owner: ${{ steps.repository.outputs.owner }}
+        repositories: ${{ steps.repository.outputs.name }}
+        permission-contents: write
+        permission-pull-requests: read
+
+    - id: draft
+      name: Create or update GitHub Release draft
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ steps.draft-token.outputs.token }}
+        RELEASE_TOOL_PATH: ${{ steps.setup.outputs.path }}
+        RELEASE_CONFIG_PATH: ${{ inputs.config-path }}
+        RELEASE_STATE_DIR: ${{ runner.temp }}/release-post-merge-state
+        PREPARED_RELEASE_ID: ${{ steps.finalize.outputs.prepared-release-id }}
+      run: |
+        set -euo pipefail
+        php "${RELEASE_TOOL_PATH}" release:draft \
+          --prepared "${RELEASE_STATE_DIR}/prepared-release.json" \
+          --milestone "${RELEASE_STATE_DIR}/milestone-transition.json" \
+          --config "${RELEASE_CONFIG_PATH}" \
+          --root . \
+          --json \
+          > "${RELEASE_STATE_DIR}/release-draft.json"
+
+        draft_id="$(php -r '$d=json_decode(file_get_contents($argv[1]),true,512,JSON_THROW_ON_ERROR); echo $d["id"];' "${RELEASE_STATE_DIR}/release-draft.json")"
+        release_id="$(php -r '$d=json_decode(file_get_contents($argv[1]),true,512,JSON_THROW_ON_ERROR); echo $d["github_release"]["id"];' "${RELEASE_STATE_DIR}/release-draft.json")"
+        release_url="$(php -r '$d=json_decode(file_get_contents($argv[1]),true,512,JSON_THROW_ON_ERROR); echo $d["github_release"]["url"];' "${RELEASE_STATE_DIR}/release-draft.json")"
+        artifact_name="release-state-${release_id}"
+        echo "release-draft-id=${draft_id}" >> "${GITHUB_OUTPUT}"
+        echo "github-release-id=${release_id}" >> "${GITHUB_OUTPUT}"
+        echo "github-release-url=${release_url}" >> "${GITHUB_OUTPUT}"
+        echo "state-artifact-name=${artifact_name}" >> "${GITHUB_OUTPUT}"
+
+        {
+          echo "## Release draft"
+          echo
+          echo "- Prepared release: `${PREPARED_RELEASE_ID}`"
+          echo "- Draft: `${draft_id}`"
+          echo "- GitHub Release: ${release_url}"
+          echo "- State artifact: `${artifact_name}`"
+        } >> "${GITHUB_STEP_SUMMARY}"
+
+    - name: Persist finalized release contracts
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      with:
+        name: ${{ steps.draft.outputs.state-artifact-name }}
+        path: ${{ runner.temp }}/release-post-merge-state
+        if-no-files-found: error
