@@ -1,0 +1,25 @@
+# SPDX-FileCopyrightText: 2026 LibreCode coop and contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+name: Setup release-tool
+description: Install an exact LibreCode release-tool PHAR release and verify its published SHA-256.
+inputs:
+  version:
+    description: Exact release-tool semantic version, without a leading v.
+    required: true
+outputs:
+  path:
+    description: Absolute path to the verified release-tool PHAR.
+    value: ${{ steps.install.outputs.path }}
+  version:
+    description: Installed release-tool version.
+    value: ${{ steps.install.outputs.version }}
+runs:
+  using: composite
+  steps:
+    - id: install
+      name: Download and verify release-tool
+      shell: bash
+      env:
+        RELEASE_TOOL_VERSION: ${{ inputs.version }}
+      run: bash "${{ github.action_path }}/setup.sh"
