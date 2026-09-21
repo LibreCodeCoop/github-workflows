@@ -35,12 +35,6 @@ outputs:
   verification-artifact-name:
     description: Artifact containing PublicationVerification v1 and its upstream release state.
     value: ${{ steps.verify.outputs.verification-artifact-name }}
-  prepared-path:
-    description: PreparedRelease v1 JSON path for downstream steps in the same job.
-    value: ${{ runner.temp }}/release-publication-state/prepared-release.json
-  verification-path:
-    description: PublicationVerification v1 JSON path for downstream steps in the same job.
-    value: ${{ runner.temp }}/release-publication-state/publication-verification.json
 
 runs:
   using: composite
