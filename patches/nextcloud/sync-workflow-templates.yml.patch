@@ -137,6 +137,12 @@
            path: source
 -          repository: nextcloud/.github
 +          repository: LibreCodeCoop/.github
++
++      - name: Record workflow catalog revision
++        id: catalog-revision
++        working-directory: source
++        shell: bash
++        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
  
        - name: Checkout app
          uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
