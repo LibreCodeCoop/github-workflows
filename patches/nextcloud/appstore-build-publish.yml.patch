@@ -33,7 +33,7 @@
        - name: Check server download link for ${{ fromJSON(steps.appinfo.outputs.result).nextcloud.min-version }}
          run: |
            NCVERSION='${{ fromJSON(steps.appinfo.outputs.result).nextcloud.min-version }}'
-@@ -180,10 +185,17 @@
+@@ -180,9 +185,16 @@
            # Signing
            php nextcloud/occ integrity:sign-app --privateKey=../${{ env.APP_NAME }}.key --certificate=../${{ env.APP_NAME }}.crt --path=../${{ env.APP_NAME }}/build/artifacts/${{ env.APP_NAME }}
            # Rebuilding archive
