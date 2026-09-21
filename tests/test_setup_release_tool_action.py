@@ -6,7 +6,6 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "actions" / "setup-release-tool" / "setup.sh"
@@ -14,7 +13,13 @@ ACTION = ROOT / "actions" / "setup-release-tool" / "action.yml"
 
 
 class SetupReleaseToolActionTest(unittest.TestCase):
-    def run_script(self, version: str) -> subprocess.CompletedProcess[str]:
+    def run_script(
+        self,
+        version: str,
+        *,
+        fake_download: bool = False,
+        checksum_mismatch: bool = False,
+    ) -> tuple[subprocess.CompletedProcess[str], str, str]:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             output = root / "output"
@@ -25,12 +30,55 @@ class SetupReleaseToolActionTest(unittest.TestCase):
                 "GITHUB_OUTPUT": str(output),
                 "GITHUB_PATH": str(path_file),
             }
-            return subprocess.run(
+
+            if fake_download:
+                fake_bin = root / "bin"
+                fake_bin.mkdir()
+                curl = fake_bin / "curl"
+                curl.write_text(
+                    "#!/usr/bin/env bash\n"
+                    "set -euo pipefail\n"
+                    "output=''\n"
+                    "url=''\n"
+                    "while (($#)); do\n"
+                    "  case \"$1\" in\n"
+                    "    --output) output=\"$2\"; shift 2 ;;\n"
+                    "    http*) url=\"$1\"; shift ;;\n"
+                    "    *) shift ;;\n"
+                    "  esac\n"
+                    "done\n"
+                    "if [[ \"$url\" == *.sha256 ]]; then\n"
+                    "  if [[ \"${FAKE_CHECKSUM_MISMATCH:-0}\" == 1 ]]; then\n"
+                    "    printf '%064d  release-tool.phar\\n' 0 > \"$output\"\n"
+                    "  else\n"
+                    "    printf fake-phar | sha256sum | awk '{print $1 \"  release-tool.phar\"}' > \"$output\"\n"
+                    "  fi\n"
+                    "else\n"
+                    "  printf fake-phar > \"$output\"\n"
+                    "fi\n",
+                    encoding="utf-8",
+                )
+                curl.chmod(0o755)
+
+                php = fake_bin / "php"
+                php.write_text("#!/usr/bin/env bash\nexit 0\n", encoding="utf-8")
+                php.chmod(0o755)
+
+                env["PATH"] = str(fake_bin) + os.pathsep + env["PATH"]
+                if checksum_mismatch:
+                    env["FAKE_CHECKSUM_MISMATCH"] = "1"
+
+            result = subprocess.run(
                 ["bash", str(SCRIPT)],
                 env=env,
                 text=True,
                 capture_output=True,
                 check=False,
+            )
+            return (
+                result,
+                output.read_text(encoding="utf-8") if output.exists() else "",
+                path_file.read_text(encoding="utf-8") if path_file.exists() else "",
             )
 
     def test_action_exposes_only_exact_version_input(self) -> None:
@@ -41,16 +89,35 @@ class SetupReleaseToolActionTest(unittest.TestCase):
         self.assertIn("setup.sh", content)
 
     def test_rejects_latest_before_network_access(self) -> None:
-        result = self.run_script("latest")
+        result, _, _ = self.run_script("latest")
 
         self.assertEqual(2, result.returncode)
         self.assertIn("exact semantic version", result.stdout)
 
     def test_rejects_semver_range_before_network_access(self) -> None:
-        result = self.run_script("^1.2.3")
+        result, _, _ = self.run_script("^1.2.3")
 
         self.assertEqual(2, result.returncode)
         self.assertIn("exact semantic version", result.stdout)
+
+    def test_valid_exact_release_is_verified_and_exposed(self) -> None:
+        result, output, path_file = self.run_script("1.2.3", fake_download=True)
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertIn("version=1.2.3", output)
+        self.assertIn("path=", output)
+        self.assertIn("librecode-release-tool/1.2.3", path_file)
+
+    def test_checksum_mismatch_fails_closed(self) -> None:
+        result, output, _ = self.run_script(
+            "1.2.3",
+            fake_download=True,
+            checksum_mismatch=True,
+        )
+
+        self.assertEqual(3, result.returncode)
+        self.assertIn("checksum mismatch", result.stdout)
+        self.assertEqual("", output)
 
     def test_script_downloads_phar_and_published_checksum_from_same_exact_tag(self) -> None:
         content = SCRIPT.read_text(encoding="utf-8")
@@ -58,7 +125,6 @@ class SetupReleaseToolActionTest(unittest.TestCase):
         self.assertIn("releases/download/v${version}", content)
         self.assertIn("release-tool.phar.sha256", content)
         self.assertIn("sha256sum", content)
-        self.assertIn("checksum mismatch", content)
 
 
 if __name__ == "__main__":
