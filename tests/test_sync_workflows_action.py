@@ -202,7 +202,7 @@ class SyncWorkflowsActionTest(unittest.TestCase):
             self.assertEqual(report["failed"], ["sync.yml"])
             self.assertEqual(
                 sync_module.parse_lock(target / ".github/actions-lock.txt")["sync.yml"],
-                sync_module.md5(source_file),
+                sync_module.sha256(source_file),
             )
 
     def test_removes_lock_entries_missing_from_catalog(self) -> None:
