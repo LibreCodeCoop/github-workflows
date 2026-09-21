@@ -16,6 +16,9 @@ from xml.etree import ElementTree
 
 SEMVER = re.compile(r"^(?P<major>[0-9]+)\.(?P<minor>[0-9]+)\.(?P<patch>[0-9]+)$")
 STABLE = re.compile(r"^stable(?P<major>[0-9]+)$")
+CONVENTIONAL = re.compile(
+    r"^(?P<type>[a-z][a-z0-9-]*)(?:\([^)]+\))?(?P<breaking>!)?:\s+.+$"
+)
 
 
 @dataclass(frozen=True)
@@ -25,6 +28,8 @@ class ReleaseLine:
     current_version: str
     nextcloud_major: int
     previous_tag: str | None
+    release_kind: str
+    conventional_types: tuple[str, ...]
     proposed_version: str
     requested_version: str
     milestone: str
@@ -105,6 +110,80 @@ def _next_patch(version: str) -> str:
     return f"{match.group('major')}.{match.group('minor')}.{int(match.group('patch')) + 1}"
 
 
+def _next_minor(version: str) -> str:
+    match = SEMVER.fullmatch(version)
+    if match is None:
+        raise ValueError(f"invalid semantic version: {version}")
+    return f"{match.group('major')}.{int(match.group('minor')) + 1}.0"
+
+
+def _conventional_commits_since(
+    repo: Path,
+    previous_tag: str | None,
+    branch: str,
+) -> tuple[tuple[str, ...], bool]:
+    if previous_tag is None:
+        return (), False
+
+    raw = _git(
+        repo,
+        "log",
+        "--format=%s%x1f%b%x1e",
+        f"{previous_tag}..{branch}",
+    )
+    types: list[str] = []
+    breaking = False
+
+    for record in raw.split("\x1e"):
+        if not record.strip():
+            continue
+        subject, _, body = record.partition("\x1f")
+        candidates = [subject, *body.splitlines()]
+        matched = None
+        for candidate in candidates:
+            match = CONVENTIONAL.fullmatch(candidate.strip())
+            if match:
+                matched = match
+                break
+        if matched is None:
+            continue
+
+        commit_type = matched.group("type")
+        types.append(commit_type)
+        if matched.group("breaking") or "BREAKING CHANGE:" in body:
+            breaking = True
+
+    return tuple(types), breaking
+
+
+def _propose_version(
+    repo: Path,
+    previous_tag: str | None,
+    branch: str,
+    current_version: str,
+) -> tuple[str, str, tuple[str, ...], bool]:
+    if previous_tag is None:
+        return current_version, "major", (), False
+
+    previous_version = _version_from_tag(previous_tag, current_version)
+    conventional_types, breaking = _conventional_commits_since(
+        repo, previous_tag, branch
+    )
+    if "feat" in conventional_types:
+        return (
+            _next_minor(previous_version),
+            "minor",
+            conventional_types,
+            breaking,
+        )
+    return (
+        _next_patch(previous_version),
+        "patch",
+        conventional_types,
+        breaking,
+    )
+
+
 def _parse_json_mapping(value: str, name: str) -> dict[str, str]:
     try:
         parsed = json.loads(value)
@@ -159,6 +238,8 @@ def build_release_train(
                     current_version="",
                     nextcloud_major=-1,
                     previous_tag=None,
+                    release_kind="",
+                    conventional_types=(),
                     proposed_version="",
                     requested_version=version_overrides.get(branch, ""),
                     milestone="",
@@ -181,6 +262,8 @@ def build_release_train(
                     current_version="",
                     nextcloud_major=-1,
                     previous_tag=None,
+                    release_kind="",
+                    conventional_types=(),
                     proposed_version="",
                     requested_version=version_overrides.get(branch, ""),
                     milestone="",
@@ -198,9 +281,20 @@ def build_release_train(
             )
 
         previous_tag = _previous_release_tag(repo, branch)
-        previous_version = _version_from_tag(previous_tag, current_version)
-        proposed_version = _next_patch(previous_version)
+        (
+            proposed_version,
+            release_kind,
+            conventional_types,
+            breaking_change,
+        ) = _propose_version(repo, previous_tag, branch, current_version)
         requested_version = version_overrides.get(branch, proposed_version)
+
+        if breaking_change:
+            warnings.append(
+                "breaking Conventional Commit marker detected; LibreSign policy "
+                "does not infer a major release from commits, so review whether "
+                "the change belongs in the current line"
+            )
 
         if not SEMVER.fullmatch(requested_version):
             blockers.append(
@@ -235,6 +329,8 @@ def build_release_train(
                 current_version=current_version,
                 nextcloud_major=nextcloud_major,
                 previous_tag=previous_tag,
+                release_kind=release_kind,
+                conventional_types=conventional_types,
                 proposed_version=proposed_version,
                 requested_version=requested_version,
                 milestone=milestone,
@@ -254,6 +350,8 @@ def build_release_train(
                 "current_version": line.current_version,
                 "nextcloud_major": line.nextcloud_major,
                 "previous_tag": line.previous_tag,
+                "release_kind": line.release_kind,
+                "conventional_types": list(line.conventional_types),
                 "proposed_version": line.proposed_version,
                 "requested_version": line.requested_version,
                 "milestone": line.milestone,
@@ -272,14 +370,14 @@ def render_summary(plan: dict[str, object]) -> str:
         "",
         f"Overall readiness: **{'ready' if plan['ready'] else 'blocked'}**",
         "",
-        "| Branch | Current | Previous tag | Proposed | Requested | Milestone | Status |",
-        "| --- | --- | --- | --- | --- | --- | --- |",
+        "| Branch | Current | Previous tag | Bump | Proposed | Requested | Milestone | Status |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
     for release in plan["releases"]:
         status = "ready" if release["ready"] else "blocked"
         lines.append(
-            "| {branch} | {current_version} | {previous_tag} | {proposed_version} | "
-            "{requested_version} | {milestone} | {status} |".format(
+            "| {branch} | {current_version} | {previous_tag} | {release_kind} | "
+            "{proposed_version} | {requested_version} | {milestone} | {status} |".format(
                 previous_tag=release["previous_tag"] or "-",
                 status=status,
                 **release,
