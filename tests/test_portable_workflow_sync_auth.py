@@ -37,10 +37,8 @@ class PortableWorkflowSyncAuthTest(unittest.TestCase):
 
     def test_github_token_limitation_is_visible_in_template(self) -> None:
         content = TEMPLATE.read_text(encoding="utf-8")
-        self.assertIn(
-            "generated PRs do not trigger normal PR workflows",
-            content,
-        )
+        self.assertIn("GITHUB_TOKEN limitations", content)
+        self.assertIn("docs/cross-repository-automation.md", content)
 
     def test_sync_action_is_pinned_with_release_and_catalog_provenance(self) -> None:
         content = TEMPLATE.read_text(encoding="utf-8")
