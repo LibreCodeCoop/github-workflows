@@ -72,17 +72,29 @@ def release_filename(version: str) -> str:
     return f"{version}.rst"
 
 
-def version_key(version: str) -> tuple[int, int, int, int, str]:
+def version_key(version: str) -> tuple[int, int, int, int, int, str]:
     match = VERSION_RE.fullmatch(version)
     if match is None:
         raise ValueError(f"unsupported release version: {version}")
+
     prerelease = match.group("pre")
+    if prerelease is None:
+        stage_rank = 4
+        sequence = 0
+        fallback = ""
+    else:
+        parts = prerelease.split(".", 1)
+        stage_rank = {"alpha": 1, "beta": 2, "rc": 3}.get(parts[0].lower(), 0)
+        sequence = int(parts[1]) if len(parts) == 2 and parts[1].isdigit() else 0
+        fallback = prerelease
+
     return (
         int(match.group("major")),
         int(match.group("minor")),
         int(match.group("patch")),
-        1 if prerelease is None else 0,
-        prerelease or "",
+        stage_rank,
+        sequence,
+        fallback,
     )
 
 
