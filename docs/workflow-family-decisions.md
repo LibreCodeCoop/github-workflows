@@ -25,7 +25,7 @@ consumer-specific or credential-sensitive.
 | Dependency approval / auto-merge | Keep local until policy-compatible | Governed by `docs/dependency-update-policy.md` |
 | npm audit remediation | Keep local | Credential and merge policy are repository-specific |
 | App Store build/publish | Organization template available | Cataloged; installation remains opt-in because credentials and release policy are consumer-owned |
-| Other release automation | Keep consumer-local unless generic | Requires an explicit credential and release contract before cataloging |
+| Release apply | `release-nextcloud-app.yml` organization template | Cataloged and opt-in; validates readiness, consumer credentials, then creates the GitHub Release that triggers App Store publication |
 
 ## Decision rule
 
