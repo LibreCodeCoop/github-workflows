@@ -202,10 +202,10 @@ runs:
         {
           echo "## Release draft"
           echo
-          echo "- Prepared release: `${PREPARED_RELEASE_ID}`"
-          echo "- Draft: `${draft_id}`"
+          printf -- '- Prepared release: `%s`\n' "${PREPARED_RELEASE_ID}"
+          printf -- '- Draft: `%s`\n' "${draft_id}"
           echo "- GitHub Release: ${release_url}"
-          echo "- State artifact: `${artifact_name}`"
+          printf -- '- State artifact: `%s`\n' "${artifact_name}"
         } >> "${GITHUB_STEP_SUMMARY}"
 
     - name: Persist finalized release contracts

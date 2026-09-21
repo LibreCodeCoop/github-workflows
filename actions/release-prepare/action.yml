@@ -166,9 +166,9 @@ runs:
         {
           echo "## Release preparation"
           echo
-          echo "- Preparation: `${preparation_id}`"
+          printf -- '- Preparation: `%s`\n' "${preparation_id}"
           echo "- Pull request: ${pr_url}"
-          echo "- State artifact: `${artifact_name}`"
+          printf -- '- State artifact: `%s`\n' "${artifact_name}"
         } >> "${GITHUB_STEP_SUMMARY}"
 
     - name: Persist release preparation contracts
