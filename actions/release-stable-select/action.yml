@@ -1,0 +1,43 @@
+# SPDX-FileCopyrightText: 2026 LibreCode coop and contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+name: Select latest stable release branch
+description: Resolve exact stable<N> branches and report whether the current branch is the highest maintained stable.
+
+inputs:
+  repository:
+    description: Repository in owner/name form. Defaults to the current repository.
+    required: false
+    default: ''
+  branch:
+    description: Branch to compare. Defaults to the current GitHub ref name.
+    required: false
+    default: ''
+
+outputs:
+  current-branch:
+    description: Branch being evaluated.
+    value: ${{ steps.resolve.outputs.current_branch }}
+  current-major:
+    description: Numeric stable release line for the current branch, or empty when it is not stable<N>.
+    value: ${{ steps.resolve.outputs.current_major }}
+  latest-branch:
+    description: Highest exact stable<N> branch found in the repository.
+    value: ${{ steps.resolve.outputs.latest_branch }}
+  latest-major:
+    description: Numeric release line of the latest stable branch.
+    value: ${{ steps.resolve.outputs.latest_major }}
+  is-latest:
+    description: Whether the current branch is exactly the latest stable branch.
+    value: ${{ steps.resolve.outputs.is_latest }}
+
+runs:
+  using: composite
+  steps:
+    - id: resolve
+      name: Resolve latest stable branch
+      shell: bash
+      env:
+        INPUT_REPOSITORY: ${{ inputs.repository }}
+        INPUT_BRANCH: ${{ inputs.branch }}
+      run: python3 "$GITHUB_ACTION_PATH/resolve.py"
