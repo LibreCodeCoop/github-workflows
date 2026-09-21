@@ -25,6 +25,7 @@ class SyncReleaseHistoryTest(unittest.TestCase):
         self.assertIn("15.1.0 - 2026-09-21", rendered)
         self.assertIn("Added\n-----", rendered)
         self.assertIn("`#10 <https://github.com/LibreSign/libresign/pull/10>`_", rendered)
+        self.assertIn("SPDX-License-Identifier: AGPL-3.0-or-later", rendered)
 
     def test_synchronization_requires_successful_matching_publication(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -67,6 +68,7 @@ class SyncReleaseHistoryTest(unittest.TestCase):
             self.assertEqual(first, second)
             self.assertIn("15.1.0", (docs / "developer_manual/release-history/15/index.rst").read_text(encoding="utf-8"))
             self.assertIn("LibreSign 15 <15/index>", (docs / "developer_manual/release-history/index.rst").read_text(encoding="utf-8"))
+            self.assertIn("SPDX-License-Identifier: AGPL-3.0-or-later", (docs / "developer_manual/release-history/15/index.rst").read_text(encoding="utf-8"))
 
     def test_versions_sort_semantically(self) -> None:
         versions = ["15.9.0", "15.10.0", "15.10.0-rc.1", "15.2.4"]

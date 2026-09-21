@@ -13,6 +13,11 @@ VERSION_RE = re.compile(r"^(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)(?:-(?P
 HEADING_RE = re.compile(r"^(#{2,3})\s+(.+?)\s*$")
 LINK_RE = re.compile(r"\[([^\]]+)\]\((https?://[^)]+)\)")
 CODE_RE = re.compile(r"`([^`]+)`")
+RST_HEADER = [
+    ".. SPDX-FileCopyrightText: 2026 LibreCode coop and contributors",
+    ".. SPDX-License-Identifier: AGPL-3.0-or-later",
+    "",
+]
 
 
 def load_json(path: Path) -> dict[str, object]:
@@ -33,7 +38,7 @@ def markdown_section_to_rst(section: str, version: str) -> str:
     if not lines:
         raise ValueError("changelog section must not be empty")
 
-    output: list[str] = []
+    output: list[str] = [*RST_HEADER, ".. This file is generated from LibreSign/libresign release history.", ""]
     first_heading_seen = False
     for raw in lines:
         match = HEADING_RE.match(raw)
@@ -85,6 +90,7 @@ def render_major_index(major: int, versions: list[str]) -> str:
     ordered = sorted(versions, key=version_key, reverse=True)
     title = f"LibreSign {major}"
     body = [
+        *RST_HEADER,
         ".. This file is generated from LibreSign release history. Do not edit release text here manually.",
         "",
         title,
@@ -101,6 +107,7 @@ def render_major_index(major: int, versions: list[str]) -> str:
 def render_root_index(majors: list[int]) -> str:
     title = "Release history"
     body = [
+        *RST_HEADER,
         ".. This file is generated. Release text is sourced from LibreSign/libresign per-major changelogs.",
         "",
         title,
