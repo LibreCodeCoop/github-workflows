@@ -1,0 +1,36 @@
+# SPDX-FileCopyrightText: 2026 LibreCode coop and contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+name: Plan release train
+description: Discover and validate a multi-branch Nextcloud app release train without mutations.
+
+inputs:
+  branches:
+    description: JSON array of branches to include in the release train
+    required: true
+  version-overrides:
+    description: JSON object mapping branch names to explicit release versions
+    required: false
+    default: '{}'
+
+outputs:
+  plan:
+    description: Compact JSON release train plan
+    value: ${{ steps.plan.outputs.plan }}
+  ready:
+    description: Whether every selected release line passed read-only validation
+    value: ${{ steps.plan.outputs.ready }}
+  publication-order:
+    description: JSON array of branches ordered oldest stable first
+    value: ${{ steps.plan.outputs.publication_order }}
+
+runs:
+  using: composite
+  steps:
+    - name: Plan release train
+      id: plan
+      shell: bash
+      env:
+        RELEASE_TRAIN_BRANCHES: ${{ inputs.branches }}
+        RELEASE_TRAIN_VERSION_OVERRIDES: ${{ inputs.version-overrides }}
+      run: python3 "$GITHUB_ACTION_PATH/../../scripts/release_train_plan.py"
