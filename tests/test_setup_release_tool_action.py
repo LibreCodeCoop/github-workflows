@@ -10,12 +10,13 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "actions" / "setup-release-tool" / "setup.sh"
 ACTION = ROOT / "actions" / "setup-release-tool" / "action.yml"
+VERSION = ROOT / "actions" / "setup-release-tool" / "release-tool-version"
 
 
 class SetupReleaseToolActionTest(unittest.TestCase):
     def run_script(
         self,
-        version: str,
+        version: str | None,
         *,
         fake_download: bool = False,
         checksum_mismatch: bool = False,
@@ -26,11 +27,14 @@ class SetupReleaseToolActionTest(unittest.TestCase):
             output = root / "output"
             path_file = root / "path"
             env = os.environ | {
-                "RELEASE_TOOL_VERSION": version,
+                "GITHUB_ACTION_PATH": str(SCRIPT.parent),
                 "RUNNER_TEMP": str(root),
                 "GITHUB_OUTPUT": str(output),
                 "GITHUB_PATH": str(path_file),
             }
+
+            if version is not None:
+                env["RELEASE_TOOL_VERSION"] = version
 
             if fake_download:
                 fake_bin = root / "bin"
@@ -87,12 +91,20 @@ class SetupReleaseToolActionTest(unittest.TestCase):
                 path_file.read_text(encoding="utf-8") if path_file.exists() else "",
             )
 
-    def test_action_exposes_only_exact_version_input(self) -> None:
+    def test_action_exposes_optional_exact_version_override(self) -> None:
         content = ACTION.read_text(encoding="utf-8")
 
         self.assertIn("version:", content)
-        self.assertNotIn("latest", content.lower())
+        self.assertIn("required: false", content)
+        self.assertIn("default: ''", content)
         self.assertIn("setup.sh", content)
+
+    def test_default_version_is_centralized_in_action_directory(self) -> None:
+        result, output, path_file = self.run_script(None, fake_download=True)
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertIn("version=0.5.0", output)
+        self.assertIn("librecode-release-tool/0.5.0", path_file)
 
     def test_rejects_latest_before_network_access(self) -> None:
         result, _, _ = self.run_script("latest")
@@ -141,6 +153,7 @@ class SetupReleaseToolActionTest(unittest.TestCase):
         self.assertIn("releases/download/v${version}", content)
         self.assertIn("release-tool.phar.sha256", content)
         self.assertIn("sha256sum", content)
+        self.assertEqual("0.5.0", VERSION.read_text(encoding="utf-8").strip())
 
 
 if __name__ == "__main__":
