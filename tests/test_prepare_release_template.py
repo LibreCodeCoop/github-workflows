@@ -33,7 +33,7 @@ class PrepareReleaseTemplateTest(unittest.TestCase):
         content = TEMPLATE.read_text(encoding="utf-8")
 
         self.assertNotIn("description: Optional", content)
-        self.assertIn("docs.libresign.coop/developer_manual/release-process/preparing.html", content)
+        self.assertIn("github.com/LibreSign/documentation/blob/main/developer_manual/release-process/preparing.rst", content)
         self.assertIn("Leave blank to use the latest branch state", content)
         self.assertIn("Branch and version rules are still validated", content)
         self.assertIn("matching backport PR still open", content)
