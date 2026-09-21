@@ -8,6 +8,7 @@
     "lint-php-cs",
     "lint-stylelint",
     "lint-typescript",
+    "nightly-release",
     "node-test",
     "npm-build",
     "openapi",
