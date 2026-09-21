@@ -10,6 +10,7 @@ from pathlib import Path
 from scripts.release_train_plan import (
     _parse_appinfo,
     _parse_branches,
+    _propose_version,
     build_release_train,
     render_summary,
 )
@@ -51,7 +52,13 @@ class ReleaseTrainPlanTest(unittest.TestCase):
         git(repo, "checkout", "-B", branch)
         self.write_appinfo(repo, version, nc)
         git(repo, "add", "appinfo/info.xml")
-        git(repo, "commit", "-m", f"{branch} {version}")
+        git(repo, "commit", "-m", f"chore: prepare {branch} {version}")
+
+    def commit_change(self, repo: Path, message: str, filename: str = "change.txt") -> None:
+        path = repo / filename
+        path.write_text(message + "\n", encoding="utf-8")
+        git(repo, "add", filename)
+        git(repo, "commit", "-m", message)
 
     def test_orders_stable_lines_oldest_first(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -76,10 +83,64 @@ class ReleaseTrainPlanTest(unittest.TestCase):
                 plan["releases"][0]["proposed_version"],
                 "14.4.9",
             )
+            self.assertEqual(plan["releases"][0]["release_kind"], "patch")
             self.assertEqual(
                 plan["releases"][1]["milestone"],
                 "Next Patch (35)",
             )
+
+    def test_feature_commit_proposes_minor_release(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            repo = self.init_repo(directory)
+            self.commit_release_line(repo, "stable35", "15.2.3", 35)
+            git(repo, "tag", "v15.2.3")
+            self.commit_change(repo, "feat: add signing policy")
+
+            plan = build_release_train(repo, ("stable35",), {})
+
+            release = plan["releases"][0]
+            self.assertEqual(release["release_kind"], "minor")
+            self.assertEqual(release["proposed_version"], "15.3.0")
+            self.assertIn("feat", release["conventional_types"])
+
+    def test_fix_commit_proposes_patch_release(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            repo = self.init_repo(directory)
+            self.commit_release_line(repo, "stable35", "15.2.3", 35)
+            git(repo, "tag", "v15.2.3")
+            self.commit_change(repo, "fix: handle empty signature")
+
+            plan = build_release_train(repo, ("stable35",), {})
+
+            release = plan["releases"][0]
+            self.assertEqual(release["release_kind"], "patch")
+            self.assertEqual(release["proposed_version"], "15.2.4")
+
+    def test_first_release_of_new_line_uses_declared_major_version(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            repo = self.init_repo(directory)
+            self.commit_release_line(repo, "stable36", "16.0.0", 36)
+
+            plan = build_release_train(repo, ("stable36",), {})
+
+            release = plan["releases"][0]
+            self.assertEqual(release["release_kind"], "major")
+            self.assertEqual(release["previous_tag"], None)
+            self.assertEqual(release["proposed_version"], "16.0.0")
+
+    def test_breaking_marker_does_not_auto_increment_major(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            repo = self.init_repo(directory)
+            self.commit_release_line(repo, "stable35", "15.2.3", 35)
+            git(repo, "tag", "v15.2.3")
+            self.commit_change(repo, "feat!: replace signing workflow")
+
+            plan = build_release_train(repo, ("stable35",), {})
+
+            release = plan["releases"][0]
+            self.assertEqual(release["release_kind"], "minor")
+            self.assertEqual(release["proposed_version"], "15.3.0")
+            self.assertTrue(any("breaking" in item for item in release["warnings"]))
 
     def test_explicit_version_override_is_visible(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -162,6 +223,8 @@ class ReleaseTrainPlanTest(unittest.TestCase):
                         "current_version": "14.4.8",
                         "nextcloud_major": 34,
                         "previous_tag": "v14.4.8",
+                        "release_kind": "patch",
+                        "conventional_types": ["fix"],
                         "proposed_version": "14.4.9",
                         "requested_version": "14.4.9",
                         "milestone": "Next Patch (34)",
@@ -172,7 +235,7 @@ class ReleaseTrainPlanTest(unittest.TestCase):
                 ],
             }
         )
-        self.assertIn("| stable34 | 14.4.8 | v14.4.8 |", summary)
+        self.assertIn("| stable34 | 14.4.8 | v14.4.8 | patch |", summary)
 
 
 if __name__ == "__main__":
