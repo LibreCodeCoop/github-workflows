@@ -19,6 +19,7 @@ class SetupReleaseToolActionTest(unittest.TestCase):
         *,
         fake_download: bool = False,
         checksum_mismatch: bool = False,
+        missing_artifact: bool = False,
     ) -> tuple[subprocess.CompletedProcess[str], str, str]:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -47,6 +48,9 @@ class SetupReleaseToolActionTest(unittest.TestCase):
                     "    *) shift ;;\n"
                     "  esac\n"
                     "done\n"
+                    "if [[ \"${FAKE_MISSING_ARTIFACT:-0}\" == 1 && \"$url\" == *.phar ]]; then\n"
+                    "  exit 22\n"
+                    "fi\n"
                     "if [[ \"$url\" == *.sha256 ]]; then\n"
                     "  if [[ \"${FAKE_CHECKSUM_MISMATCH:-0}\" == 1 ]]; then\n"
                     "    printf '%064d  release-tool.phar\\n' 0 > \"$output\"\n"
@@ -67,6 +71,8 @@ class SetupReleaseToolActionTest(unittest.TestCase):
                 env["PATH"] = str(fake_bin) + os.pathsep + env["PATH"]
                 if checksum_mismatch:
                     env["FAKE_CHECKSUM_MISMATCH"] = "1"
+                if missing_artifact:
+                    env["FAKE_MISSING_ARTIFACT"] = "1"
 
             result = subprocess.run(
                 ["bash", str(SCRIPT)],
@@ -117,6 +123,16 @@ class SetupReleaseToolActionTest(unittest.TestCase):
 
         self.assertEqual(3, result.returncode)
         self.assertIn("checksum mismatch", result.stdout)
+        self.assertEqual("", output)
+
+    def test_missing_artifact_fails_closed(self) -> None:
+        result, output, _ = self.run_script(
+            "1.2.3",
+            fake_download=True,
+            missing_artifact=True,
+        )
+
+        self.assertNotEqual(0, result.returncode)
         self.assertEqual("", output)
 
     def test_script_downloads_phar_and_published_checksum_from_same_exact_tag(self) -> None:
