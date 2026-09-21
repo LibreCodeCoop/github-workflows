@@ -18,6 +18,14 @@ inputs:
   destination:
     description: Destination directory.
     required: true
+  expected-event:
+    description: Optional originating workflow event that must match.
+    required: false
+    default: ''
+  expected-workflow-path:
+    description: Optional originating workflow path that must match.
+    required: false
+    default: ''
   github-token:
     description: Token with Actions artifact read access.
     required: true
@@ -42,6 +50,8 @@ runs:
         RELEASE_ARTIFACT_NAME: ${{ inputs.artifact-name }}
         RELEASE_EXPECTED_HEAD_SHA: ${{ inputs.expected-head-sha }}
         RELEASE_ARTIFACT_DESTINATION: ${{ inputs.destination }}
+        RELEASE_EXPECTED_EVENT: ${{ inputs.expected-event }}
+        RELEASE_EXPECTED_WORKFLOW_PATH: ${{ inputs.expected-workflow-path }}
       run: |
         set -euo pipefail
         result_file="${RUNNER_TEMP}/release-artifact-restore.json"
@@ -50,6 +60,8 @@ runs:
           --name "${RELEASE_ARTIFACT_NAME}" \
           --expected-head-sha "${RELEASE_EXPECTED_HEAD_SHA}" \
           --destination "${RELEASE_ARTIFACT_DESTINATION}" \
+          --expected-event "${RELEASE_EXPECTED_EVENT}" \
+          --expected-workflow-path "${RELEASE_EXPECTED_WORKFLOW_PATH}" \
           > "${result_file}"
 
         artifact_id="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["artifact_id"])' "${result_file}")"
