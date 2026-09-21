@@ -29,6 +29,8 @@ class ReleasePublicationActionTest(unittest.TestCase):
         content = ACTION.read_text(encoding="utf-8")
         self.assertIn('artifact_name="publication-verification-${RELEASE_ID}"', content)
         self.assertIn("actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02", content)
+        self.assertIn("prepared-path:", content)
+        self.assertIn("verification-path:", content)
 
 
 if __name__ == "__main__":
