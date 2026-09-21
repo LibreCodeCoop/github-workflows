@@ -140,6 +140,14 @@ jobs:
           cd ${{ env.APP_NAME }}
           make appstore
 
+      - name: Verify app store package
+        if: steps.krankerl.outputs.files_exists != 'true'
+        working-directory: ${{ env.APP_NAME }}
+        run: |
+          if make -qp 2>/dev/null | grep -q '^verify-appstore-package:'; then
+            make verify-appstore-package
+          fi
+
       - name: Check server download link for ${{ fromJSON(steps.appinfo.outputs.result).nextcloud.min-version }}
         run: |
           NCVERSION='${{ fromJSON(steps.appinfo.outputs.result).nextcloud.min-version }}'
@@ -180,6 +188,13 @@ jobs:
           cd ${{ env.APP_NAME }}/build/artifacts
           tar -zcvf ${{ env.APP_NAME }}.tar.gz ${{ env.APP_NAME }}
 
+      - name: Validate release artifact
+        uses: LibreCodeCoop/github-workflows/actions/validate-release-artifact@eabf9eeacf26f8ef8c01a72641bf8e2ed1ba3637 # v0.2.0
+        with:
+          artifact: ${{ env.APP_NAME }}/build/artifacts/${{ env.APP_NAME }}.tar.gz
+          app-name: ${{ env.APP_NAME }}
+          version: ${{ env.APP_VERSION }}
+
       - name: Attach tarball to github release
         uses: svenstaro/upload-release-action@29e53e917877a24fad85510ded594ab3c9ca12de # 2.11.5
         id: attach_to_release
@@ -197,3 +212,10 @@ jobs:
           appstore_token: ${{ secrets.APPSTORE_TOKEN }}
           download_url: ${{ steps.attach_to_release.outputs.browser_download_url }}
           app_private_key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - name: Verify App Store publication
+        uses: LibreCodeCoop/github-workflows/actions/verify-appstore-publication@0bb30136a7fcb7e70b7ae579addeeda882f4c457 # v0.2.0
+        with:
+          app-name: ${{ env.APP_NAME }}
+          version: ${{ env.APP_VERSION }}
+          nextcloud-platform: ${{ fromJSON(steps.appinfo.outputs.result).nextcloud.min-version }}
