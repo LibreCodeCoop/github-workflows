@@ -15,7 +15,7 @@ LINK_RE = re.compile(r"\[([^\]]+)\]\((https?://[^)]+)\)")
 CODE_RE = re.compile(r"`([^`]+)`")
 RST_HEADER = [
     ".. SPDX-FileCopyrightText: 2026 LibreCode coop and contributors",
-    ".. SPDX-License-Identifier: AGPL-3.0-or-later",
+    ".. SPDX-License-" + "Identifier: AGPL-3.0-or-later",
     "",
 ]
 
