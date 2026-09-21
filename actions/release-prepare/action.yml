@@ -102,7 +102,7 @@ runs:
         echo "minimum-permission=${minimum_permission}" >> "${GITHUB_OUTPUT}"
 
     - name: Authorize preparation actor
-      uses: $/actions/check-release-authorization
+      uses: $/actions/release-authorization
       with:
         repository: ${{ github.repository }}
         actor: ${{ inputs.actor }}

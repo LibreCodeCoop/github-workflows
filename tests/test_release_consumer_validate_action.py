@@ -8,15 +8,15 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-ACTION = ROOT / "actions" / "validate-release-consumer" / "action.yml"
-SCRIPT = ROOT / "actions" / "validate-release-consumer" / "validate.sh"
+ACTION = ROOT / "actions" / "release-consumer-validate" / "action.yml"
+SCRIPT = ROOT / "actions" / "release-consumer-validate" / "validate.sh"
 
 
 class ValidateReleaseConsumerActionTest(unittest.TestCase):
     def test_action_wraps_setup_and_exposes_normalized_outputs(self) -> None:
         content = ACTION.read_text(encoding="utf-8")
 
-        self.assertIn("uses: $/actions/setup-release-tool", content)
+        self.assertIn("uses: $/actions/release-tool-setup", content)
         for output in (
             "version:",
             "major:",

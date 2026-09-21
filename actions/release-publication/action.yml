@@ -40,7 +40,7 @@ runs:
   using: composite
   steps:
     - name: Restore finalized release state
-      uses: $/actions/restore-release-artifact
+      uses: $/actions/release-artifact-restore
       with:
         repository: ${{ github.repository }}
         artifact-name: release-state-${{ inputs.github-release-id }}
@@ -51,7 +51,7 @@ runs:
 
     - id: setup
       name: Setup release-tool
-      uses: $/actions/setup-release-tool
+      uses: $/actions/release-tool-setup
 
     - id: verify
       name: Wait for publication verification

@@ -21,7 +21,7 @@ class ReleasePrepareActionTest(unittest.TestCase):
         self.assertIn("$/actions/release-plan", content)
         self.assertIn("config:validate", content)
         self.assertIn("prepare_min_permission", content)
-        self.assertIn("$/actions/check-release-authorization", content)
+        self.assertIn("$/actions/release-authorization", content)
         self.assertIn("actions/create-github-app-token@67018539274d69449ef7c02e8e71183d1719ab42", content)
         self.assertIn("permission-contents: write", content)
         self.assertIn("permission-pull-requests: write", content)

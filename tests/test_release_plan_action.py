@@ -13,7 +13,7 @@ class ReleasePlanActionTest(unittest.TestCase):
     def test_action_uses_exact_verified_release_tool(self) -> None:
         content = ACTION.read_text(encoding="utf-8")
 
-        self.assertIn("uses: $/actions/setup-release-tool", content)
+        self.assertIn("uses: $/actions/release-tool-setup", content)
         self.assertNotIn("with:\n        version:", content)
         self.assertIn("release:plan", content)
         self.assertIn("--release-version", content)

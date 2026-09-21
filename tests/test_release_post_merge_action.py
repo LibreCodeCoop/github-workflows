@@ -6,7 +6,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 ACTION = ROOT / "actions" / "release-post-merge" / "action.yml"
-RESTORE = ROOT / "actions" / "restore-release-artifact" / "action.yml"
+RESTORE = ROOT / "actions" / "release-artifact-restore" / "action.yml"
 
 
 class ReleasePostMergeActionTest(unittest.TestCase):

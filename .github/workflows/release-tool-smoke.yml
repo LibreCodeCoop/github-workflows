@@ -1,20 +1,20 @@
 # SPDX-FileCopyrightText: 2026 LibreCode coop and contributors
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-name: release-tool setup smoke
+name: Release tool setup smoke test
 
 on:
   pull_request:
     paths:
-      - 'actions/setup-release-tool/**'
-      - 'tests/test_setup_release_tool_action.py'
-      - '.github/workflows/setup-release-tool-smoke.yml'
+      - 'actions/release-tool-setup/**'
+      - 'tests/test_release_tool_setup_action.py'
+      - '.github/workflows/release-tool-smoke.yml'
   push:
     branches:
       - main
     paths:
-      - 'actions/setup-release-tool/**'
-      - '.github/workflows/setup-release-tool-smoke.yml'
+      - 'actions/release-tool-setup/**'
+      - '.github/workflows/release-tool-smoke.yml'
 
 permissions:
   contents: read
@@ -32,7 +32,7 @@ jobs:
           php-version: '8.3'
           coverage: none
       - id: release-tool
-        uses: $/actions/setup-release-tool
+        uses: $/actions/release-tool-setup
         with:
           version: '0.1.0'
       - name: Verify installed PHAR
