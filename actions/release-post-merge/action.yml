@@ -114,7 +114,6 @@ runs:
         RELEASE_TOOL_PATH: ${{ steps.setup.outputs.path }}
         RELEASE_CONFIG_PATH: ${{ inputs.config-path }}
         RELEASE_STATE_DIR: ${{ runner.temp }}/release-post-merge-state
-        PREPARED_RELEASE_ID: ${{ steps.finalize.outputs.prepared-release-id }}
       run: |
         set -euo pipefail
         php "${RELEASE_TOOL_PATH}" release:finalize \
@@ -180,6 +179,7 @@ runs:
         RELEASE_TOOL_PATH: ${{ steps.setup.outputs.path }}
         RELEASE_CONFIG_PATH: ${{ inputs.config-path }}
         RELEASE_STATE_DIR: ${{ runner.temp }}/release-post-merge-state
+        PREPARED_RELEASE_ID: ${{ steps.finalize.outputs.prepared-release-id }}
       run: |
         set -euo pipefail
         php "${RELEASE_TOOL_PATH}" release:draft \
