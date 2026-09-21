@@ -2,46 +2,154 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 name: Nextcloud release plan
-description: Validate whether a Nextcloud app release is ready
+description: Build a read-only ReleasePlan v1 with the verified PHP release-tool.
 
 inputs:
-  version:
-    description: Release version in MAJOR.MINOR.PATCH form
+  branch:
+    description: Release branch to plan.
     required: true
-  stable-branch:
-    description: Stable branch that is allowed to release
-    required: true
-  milestone:
-    description: Milestone title that must be closed with no open issues
+  ref:
+    description: Optional planning ref or commit SHA.
     required: false
     default: ''
-  blocker-queries:
-    description: JSON array of GitHub issue search fragments that must return zero open items
+  version:
+    description: Optional explicit release version override, with or without the configured tag prefix.
     required: false
-    default: '[]'
-  appinfo-path:
-    description: Path to the Nextcloud app info.xml
+    default: ''
+  channel:
+    description: Release channel (alpha, beta, rc or final).
     required: false
-    default: appinfo/info.xml
-  changelog-path:
-    description: Path to the changelog
+    default: final
+  mode:
+    description: Release mode (normal or security).
     required: false
-    default: CHANGELOG.md
+    default: normal
+  safe-public-text:
+    description: Optional explicitly public-safe release text.
+    required: false
+    default: ''
+  ignore-open-backport:
+    description: Explicitly override matching open backport blockers.
+    required: false
+    default: 'false'
+  create-follow-up-milestone:
+    description: Request follow-up milestone creation in a later mutating stage.
+    required: false
+    default: 'false'
+  config-path:
+    description: Consumer release configuration path.
+    required: false
+    default: .nextcloud-release.yml
   github-token:
-    description: GitHub token used for milestone and blocker checks
+    description: GitHub token used for read-only planning API calls.
     required: true
+
+outputs:
+  plan:
+    description: ReleasePlan v1 JSON.
+    value: ${{ steps.plan.outputs.plan }}
+  ready:
+    description: Whether the plan is ready for the next stage.
+    value: ${{ steps.plan.outputs.ready }}
+  tool-version:
+    description: Exact release-tool version used for planning.
+    value: ${{ steps.setup.outputs.version }}
 
 runs:
   using: composite
   steps:
-    - name: Build release plan
+    - id: setup
+      name: Setup release-tool
+      uses: $/actions/setup-release-tool
+      with:
+        version: '0.2.0'
+
+    - id: plan
+      name: Build ReleasePlan v1
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
-        RELEASE_PLAN_VERSION: ${{ inputs.version }}
-        RELEASE_PLAN_STABLE_BRANCH: ${{ inputs.stable-branch }}
-        RELEASE_PLAN_MILESTONE: ${{ inputs.milestone }}
-        RELEASE_PLAN_BLOCKER_QUERIES: ${{ inputs.blocker-queries }}
-        RELEASE_PLAN_APPINFO_PATH: ${{ inputs.appinfo-path }}
-        RELEASE_PLAN_CHANGELOG_PATH: ${{ inputs.changelog-path }}
-      run: python3 "$GITHUB_ACTION_PATH/../../scripts/release_plan.py"
+        RELEASE_TOOL_PATH: ${{ steps.setup.outputs.path }}
+        RELEASE_BRANCH: ${{ inputs.branch }}
+        RELEASE_REF: ${{ inputs.ref }}
+        RELEASE_VERSION: ${{ inputs.version }}
+        RELEASE_CHANNEL: ${{ inputs.channel }}
+        RELEASE_MODE: ${{ inputs.mode }}
+        RELEASE_SAFE_PUBLIC_TEXT: ${{ inputs.safe-public-text }}
+        RELEASE_IGNORE_OPEN_BACKPORT: ${{ inputs.ignore-open-backport }}
+        RELEASE_CREATE_FOLLOW_UP_MILESTONE: ${{ inputs.create-follow-up-milestone }}
+        RELEASE_CONFIG_PATH: ${{ inputs.config-path }}
+      run: |
+        set -euo pipefail
+
+        args=(
+          release:plan
+          --config "${RELEASE_CONFIG_PATH}"
+          --root .
+          --branch "${RELEASE_BRANCH}"
+          --channel "${RELEASE_CHANNEL}"
+          --mode "${RELEASE_MODE}"
+          --json
+        )
+
+        if [[ -n "${RELEASE_REF}" ]]; then
+          args+=(--ref "${RELEASE_REF}")
+        fi
+        if [[ -n "${RELEASE_VERSION}" ]]; then
+          args+=(--release-version "${RELEASE_VERSION}")
+        fi
+        if [[ -n "${RELEASE_SAFE_PUBLIC_TEXT}" ]]; then
+          args+=(--safe-public-text "${RELEASE_SAFE_PUBLIC_TEXT}")
+        fi
+        if [[ "${RELEASE_IGNORE_OPEN_BACKPORT}" == "true" ]]; then
+          args+=(--ignore-open-backport)
+        fi
+        if [[ "${RELEASE_CREATE_FOLLOW_UP_MILESTONE}" == "true" ]]; then
+          args+=(--create-follow-up-milestone)
+        fi
+
+        plan_file="${RUNNER_TEMP}/release-plan.json"
+        set +e
+        php "${RELEASE_TOOL_PATH}" "${args[@]}" > "${plan_file}"
+        exit_code=$?
+        set -e
+
+        if [[ "${exit_code}" -ne 0 && "${exit_code}" -ne 3 ]]; then
+          cat "${plan_file}"
+          exit "${exit_code}"
+        fi
+
+        ready="$(php -r '
+          $plan = json_decode(file_get_contents($argv[1]), true, 512, JSON_THROW_ON_ERROR);
+          echo !empty($plan["ready"]) ? "true" : "false";
+        ' "${plan_file}")"
+
+        delimiter="release-plan-${RANDOM}-${RANDOM}"
+        {
+          echo "plan<<${delimiter}"
+          cat "${plan_file}"
+          echo "${delimiter}"
+          echo "ready=${ready}"
+        } >> "${GITHUB_OUTPUT}"
+
+        {
+          echo "## Release plan"
+          echo
+          php -r '
+            $plan = json_decode(file_get_contents($argv[1]), true, 512, JSON_THROW_ON_ERROR);
+            printf("- Tool: release-tool %s\n", $argv[2]);
+            printf("- Plan: `%s`\n", $plan["id"]);
+            printf("- Branch: `%s`\n", $plan["branch"]);
+            printf("- Planning base: `%s`\n", $plan["planning_base_sha"]);
+            printf("- Version: `%s` -> `%s`\n", $plan["current_version"], $plan["proposed_version"]);
+            printf("- Channel: `%s`\n", $plan["channel"]);
+            printf("- Ready: **%s**\n", !empty($plan["ready"]) ? "yes" : "no");
+            foreach ($plan["warnings"] as $warning) {
+              printf("- Warning: %s\n", str_replace(["\r", "\n"], " ", (string) $warning));
+            }
+          ' "${plan_file}" "${{ steps.setup.outputs.version }}"
+        } >> "${GITHUB_STEP_SUMMARY}"
+
+        cat "${plan_file}"
+
+        exit "${exit_code}"
