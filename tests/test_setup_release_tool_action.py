@@ -155,7 +155,7 @@ class SetupReleaseToolActionTest(unittest.TestCase):
         self.assertIn("releases/download/v${version}", content)
         self.assertIn("release-tool.phar.sha256", content)
         self.assertIn("sha256sum", content)
-        self.assertRegex(VERSION.read_text(encoding="utf-8").strip(), r"^\\d+\\.\\d+\\.\\d+$")
+        self.assertRegex(VERSION.read_text(encoding="utf-8").strip(), r"^\d+\.\d+\.\d+$")
 
 
 if __name__ == "__main__":
