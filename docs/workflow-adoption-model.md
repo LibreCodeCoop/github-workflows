@@ -109,3 +109,23 @@ Before accepting a new shared workflow:
 - Are permissions least-privilege?
 - Are third-party actions pinned according to project policy?
 - Does the consumer have a documented update and divergence path?
+
+## Consumer lock provenance
+
+Materialized workflow consumers use `.github/actions-lock.txt` as a management
+and provenance record.
+
+New lock entries use SHA-256 and record:
+
+- the installed workflow filename;
+- the catalog workflow digest;
+- the released `github-workflows` platform version;
+- the immutable `github-workflows` source commit used by the updater;
+- the exact `LibreCodeCoop/.github` catalog commit checked out by the run.
+
+Legacy two-column MD5 locks remain readable. The next successful synchronization
+migrates them deterministically to the provenance format without rewriting a
+workflow when its effective bytes are unchanged.
+
+The consumer-local `<workflow>.patch` remains authoritative for deliberate
+local differences, and unexplained divergence continues to fail closed.
