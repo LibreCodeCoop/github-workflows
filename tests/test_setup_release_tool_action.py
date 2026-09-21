@@ -103,8 +103,8 @@ class SetupReleaseToolActionTest(unittest.TestCase):
         result, output, path_file = self.run_script(None, fake_download=True)
 
         self.assertEqual(0, result.returncode, result.stderr)
-        self.assertIn("version=0.6.0", output)
-        self.assertIn("librecode-release-tool/0.6.0", path_file)
+        self.assertIn("version=0.7.0", output)
+        self.assertIn("librecode-release-tool/0.7.0", path_file)
 
     def test_rejects_latest_before_network_access(self) -> None:
         result, _, _ = self.run_script("latest")
@@ -153,7 +153,7 @@ class SetupReleaseToolActionTest(unittest.TestCase):
         self.assertIn("releases/download/v${version}", content)
         self.assertIn("release-tool.phar.sha256", content)
         self.assertIn("sha256sum", content)
-        self.assertEqual("0.6.0", VERSION.read_text(encoding="utf-8").strip())
+        self.assertEqual("0.7.0", VERSION.read_text(encoding="utf-8").strip())
 
 
 if __name__ == "__main__":
