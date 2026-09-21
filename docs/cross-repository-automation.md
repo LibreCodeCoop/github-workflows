@@ -112,3 +112,35 @@ The initial production validation confirmed:
 - `LibreCodeCoop/extract` can be checked out and updated;
 - managed workflows can be adopted into the lock file;
 - a subsequent synchronization with current hashes creates no PR.
+
+
+## Portable consumer authentication
+
+The installed workflow updater does not infer authentication from the consumer's
+organization name. Consumers select an explicit repository variable:
+
+\`WORKFLOW_SYNC_AUTH_MODE\`
+
+Supported values:
+
+- \`librecode-app\` — default for existing LibreCode-managed repositories. Uses
+  \`LIBRECODE_WORKFLOW_APP_ID\` and \`LIBRECODE_WORKFLOW_APP_PRIVATE_KEY\`.
+- \`github-app\` — uses a consumer-owned GitHub App configured through
+  \`WORKFLOW_SYNC_APP_ID\` and \`WORKFLOW_SYNC_APP_PRIVATE_KEY\`.
+- \`token\` — uses a consumer-owned repository-scoped credential stored as
+  \`WORKFLOW_SYNC_TOKEN\`.
+- \`github-token\` — uses the workflow's built-in \`GITHUB_TOKEN\`.
+
+A consumer-owned GitHub App is preferred for independent projects because it
+keeps credentials under the consumer's control while still allowing generated
+pull requests to trigger normal repository automation.
+
+The \`github-token\` mode is intentionally explicit. GitHub suppresses workflow
+runs caused by most events created with the repository \`GITHUB_TOKEN\`, which
+means a pull request created through that mode may not trigger the consumer's
+normal pull-request CI. Use it only when that limitation is acceptable or when
+another mechanism explicitly triggers validation.
+
+For GitHub App credentials, request only the repository permissions needed by
+the updater: Contents write, Pull requests write and Workflows write. Do not
+install or share the LibreCode GitHub App/private key with external consumers.
