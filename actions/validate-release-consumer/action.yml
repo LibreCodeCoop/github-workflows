@@ -1,0 +1,53 @@
+# SPDX-FileCopyrightText: 2026 LibreCode coop and contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+name: Validate release consumer
+description: Validate a release-tool consumer configuration and expose normalized release metadata.
+
+inputs:
+  config-path:
+    description: Consumer release configuration path.
+    required: false
+    default: .nextcloud-release.yml
+  root:
+    description: Consumer repository root.
+    required: false
+    default: .
+  ref:
+    description: Git ref to inspect.
+    required: false
+    default: HEAD
+
+outputs:
+  version:
+    description: Current application version.
+    value: ${{ steps.validate.outputs.version }}
+  major:
+    description: Current application major version.
+    value: ${{ steps.validate.outputs.major }}
+  development:
+    description: Whether the current application version is a development version.
+    value: ${{ steps.validate.outputs.development }}
+  changelog-path:
+    description: Per-major changelog path selected by release-tool.
+    value: ${{ steps.validate.outputs.changelog-path }}
+  tool-version:
+    description: Exact release-tool version used for validation.
+    value: ${{ steps.setup.outputs.version }}
+
+runs:
+  using: composite
+  steps:
+    - id: setup
+      name: Setup release-tool
+      uses: $/actions/setup-release-tool
+
+    - id: validate
+      name: Validate release consumer
+      shell: bash
+      env:
+        RELEASE_TOOL_PATH: ${{ steps.setup.outputs.path }}
+        RELEASE_CONFIG_PATH: ${{ inputs.config-path }}
+        RELEASE_ROOT: ${{ inputs.root }}
+        RELEASE_REF: ${{ inputs.ref }}
+      run: bash "${{ github.action_path }}/validate.sh"
