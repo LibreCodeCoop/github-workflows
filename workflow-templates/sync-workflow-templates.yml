@@ -145,6 +145,12 @@ jobs:
           path: source
           repository: LibreCodeCoop/.github
 
+      - name: Record workflow catalog revision
+        id: catalog-revision
+        working-directory: source
+        shell: bash
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
       - name: Checkout app
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -154,10 +160,13 @@ jobs:
 
       - name: Synchronize workflow templates
         id: sync
-        uses: LibreCodeCoop/github-workflows/actions/sync-workflows@42333e05774f13b83283314079d03614a8beaf82 # v0.1.0
+        uses: LibreCodeCoop/github-workflows/actions/sync-workflows@002f17274ba1eade3351ba81890bf53674b37c43 # v0.4.0
         with:
           source: source/workflow-templates
           target: target
+          platform-version: v0.4.0
+          source-commit: 002f17274ba1eade3351ba81890bf53674b37c43
+          catalog-commit: ${{ steps.catalog-revision.outputs.sha }}
 
       - name: Create Pull Request
         if: ${{ steps.sync.outputs.changed == 'true' }}

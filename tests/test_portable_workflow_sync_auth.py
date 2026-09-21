@@ -42,6 +42,24 @@ class PortableWorkflowSyncAuthTest(unittest.TestCase):
             content,
         )
 
+    def test_sync_action_is_pinned_with_release_and_catalog_provenance(self) -> None:
+        content = TEMPLATE.read_text(encoding="utf-8")
+
+        self.assertIn(
+            "actions/sync-workflows@002f17274ba1eade3351ba81890bf53674b37c43 # v0.4.0",
+            content,
+        )
+        self.assertIn("platform-version: v0.4.0", content)
+        self.assertIn(
+            "source-commit: 002f17274ba1eade3351ba81890bf53674b37c43",
+            content,
+        )
+        self.assertIn("id: catalog-revision", content)
+        self.assertIn(
+            "catalog-commit: ${{ steps.catalog-revision.outputs.sha }}",
+            content,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
