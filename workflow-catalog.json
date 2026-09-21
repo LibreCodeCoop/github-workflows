@@ -1,5 +1,6 @@
 {
   "templates": [
+    "appstore-build-publish",
     "block-unconventional-commits",
     "lint-eslint",
     "lint-info-xml",
