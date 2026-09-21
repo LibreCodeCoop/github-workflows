@@ -9,6 +9,7 @@ on:
       - main
     paths:
       - VERSION
+      - '.github/workflows/repository-release.yml'
   workflow_dispatch:
 
 permissions:
