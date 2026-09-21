@@ -1,0 +1,58 @@
+# SPDX-FileCopyrightText: 2026 LibreCode coop and contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+name: Restore release artifact
+description: Restore a deterministic release-state artifact from a previous workflow run.
+
+inputs:
+  repository:
+    description: Repository in owner/name form.
+    required: true
+  artifact-name:
+    description: Exact Actions artifact name.
+    required: true
+  expected-head-sha:
+    description: Optional originating workflow head SHA that the artifact must match.
+    required: false
+    default: ''
+  destination:
+    description: Destination directory.
+    required: true
+  github-token:
+    description: Token with Actions artifact read access.
+    required: true
+
+outputs:
+  artifact-id:
+    description: Restored Actions artifact id.
+    value: ${{ steps.restore.outputs.artifact-id }}
+  workflow-run-id:
+    description: Workflow run id that produced the artifact.
+    value: ${{ steps.restore.outputs.workflow-run-id }}
+
+runs:
+  using: composite
+  steps:
+    - id: restore
+      name: Restore exact release artifact
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        RELEASE_REPOSITORY: ${{ inputs.repository }}
+        RELEASE_ARTIFACT_NAME: ${{ inputs.artifact-name }}
+        RELEASE_EXPECTED_HEAD_SHA: ${{ inputs.expected-head-sha }}
+        RELEASE_ARTIFACT_DESTINATION: ${{ inputs.destination }}
+      run: |
+        set -euo pipefail
+        result_file="${RUNNER_TEMP}/release-artifact-restore.json"
+        python3 "${GITHUB_ACTION_PATH}/../../scripts/restore_release_artifact.py" \
+          --repository "${RELEASE_REPOSITORY}" \
+          --name "${RELEASE_ARTIFACT_NAME}" \
+          --expected-head-sha "${RELEASE_EXPECTED_HEAD_SHA}" \
+          --destination "${RELEASE_ARTIFACT_DESTINATION}" \
+          > "${result_file}"
+
+        artifact_id="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["artifact_id"])' "${result_file}")"
+        workflow_run_id="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["workflow_run_id"])' "${result_file}")"
+        echo "artifact-id=${artifact_id}" >> "${GITHUB_OUTPUT}"
+        echo "workflow-run-id=${workflow_run_id}" >> "${GITHUB_OUTPUT}"
