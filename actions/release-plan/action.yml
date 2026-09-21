@@ -70,6 +70,7 @@ runs:
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
         RELEASE_TOOL_PATH: ${{ steps.setup.outputs.path }}
+        RELEASE_TOOL_VERSION: ${{ steps.setup.outputs.version }}
         RELEASE_BRANCH: ${{ inputs.branch }}
         RELEASE_REF: ${{ inputs.ref }}
         RELEASE_VERSION: ${{ inputs.version }}
@@ -147,7 +148,7 @@ runs:
             foreach ($plan["warnings"] as $warning) {
               printf("- Warning: %s\n", str_replace(["\r", "\n"], " ", (string) $warning));
             }
-          ' "${plan_file}" "${{ steps.setup.outputs.version }}"
+          ' "${plan_file}" "${RELEASE_TOOL_VERSION}"
         } >> "${GITHUB_STEP_SUMMARY}"
 
         cat "${plan_file}"
