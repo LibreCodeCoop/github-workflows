@@ -32,7 +32,7 @@ jobs:
           php-version: '8.3'
           coverage: none
       - id: release-tool
-        uses: ./actions/setup-release-tool
+        uses: $/actions/setup-release-tool
         with:
           version: '0.1.0'
       - name: Verify installed PHAR
