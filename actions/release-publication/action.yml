@@ -129,8 +129,8 @@ runs:
         {
           echo "## Publication verification"
           echo
-          echo "- Verification: `${verification_id}`"
-          echo "- GitHub Release id: `${RELEASE_ID}`"
+          printf -- '- Verification: `%s`\n' "${verification_id}"
+          printf -- '- GitHub Release id: `%s`\n' "${RELEASE_ID}"
           echo "- Result: **success**"
         } >> "${GITHUB_STEP_SUMMARY}"
 
