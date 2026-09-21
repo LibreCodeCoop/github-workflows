@@ -159,6 +159,35 @@ class ReleaseTrainPlanTest(unittest.TestCase):
             self.assertEqual(release["requested_version"], "15.3.0")
             self.assertIn("version override selected", release["warnings"][0])
 
+    def test_translation_commit_remains_patch_release(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            repo = self.init_repo(directory)
+            self.commit_release_line(repo, "stable35", "15.2.3", 35)
+            git(repo, "tag", "v15.2.3")
+            self.commit_change(repo, "fix(l10n): Update translations from Transifex")
+
+            plan = build_release_train(repo, ("stable35",), {})
+
+            release = plan["releases"][0]
+            self.assertEqual(release["release_kind"], "patch")
+            self.assertEqual(release["proposed_version"], "15.2.4")
+
+    def test_dependency_bump_remains_patch_even_if_dependency_major_changes(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            repo = self.init_repo(directory)
+            self.commit_release_line(repo, "stable35", "15.2.3", 35)
+            git(repo, "tag", "v15.2.3")
+            self.commit_change(
+                repo,
+                "chore(deps-dev): Bump example/library from 1.0.0 to 2.0.0",
+            )
+
+            plan = build_release_train(repo, ("stable35",), {})
+
+            release = plan["releases"][0]
+            self.assertEqual(release["release_kind"], "patch")
+            self.assertEqual(release["proposed_version"], "15.2.4")
+
     def test_existing_tag_blocks_release(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             repo = self.init_repo(directory)
