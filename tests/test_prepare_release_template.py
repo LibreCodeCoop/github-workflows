@@ -29,6 +29,18 @@ class PrepareReleaseTemplateTest(unittest.TestCase):
         self.assertIn("create_follow_up_milestone:", content)
         self.assertIn("mode:", content)
 
+    def test_dispatch_help_is_concise_and_explains_risky_inputs(self) -> None:
+        content = TEMPLATE.read_text(encoding="utf-8")
+
+        self.assertNotIn("description: Optional", content)
+        self.assertIn("github.com/LibreSign/documentation/blob/main/developer_manual/release-process/preparing.rst", content)
+        self.assertIn("Leave blank to use the latest branch state", content)
+        self.assertIn("Branch and version rules are still validated", content)
+        self.assertIn("matching backport PR still open", content)
+        self.assertIn("move remaining open items", content)
+        self.assertIn("security keeps advisory-private details out of public release text", content)
+        self.assertIn("Never include private advisory details", content)
+
     def test_template_delegates_all_release_stages_to_versioned_actions(self) -> None:
         content = TEMPLATE.read_text(encoding="utf-8")
         sha = "622599cc128ec55007b443d2908f78da930b8a21"
