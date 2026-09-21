@@ -1,0 +1,96 @@
+# SPDX-FileCopyrightText: 2026 LibreCode coop and contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+name: Synchronize release history
+description: Generate a reviewable documentation PR from a successful PublicationVerification v1.
+
+inputs:
+  prepared-path:
+    description: PreparedRelease v1 JSON path.
+    required: true
+  verification-path:
+    description: Successful PublicationVerification v1 JSON path.
+    required: true
+  documentation-repository:
+    description: Documentation repository in owner/name form.
+    required: true
+  app-id:
+    description: GitHub App id used for the documentation-scoped token.
+    required: true
+  app-private-key:
+    description: GitHub App private key.
+    required: true
+
+outputs:
+  pull-request-number:
+    description: Documentation synchronization PR number.
+    value: ${{ steps.pull-request.outputs.pull-request-number }}
+  pull-request-url:
+    description: Documentation synchronization PR URL.
+    value: ${{ steps.pull-request.outputs.pull-request-url }}
+
+runs:
+  using: composite
+  steps:
+    - id: docs-repository
+      name: Resolve documentation repository
+      shell: bash
+      env:
+        DOCUMENTATION_REPOSITORY: ${{ inputs.documentation-repository }}
+      run: |
+        set -euo pipefail
+        echo "owner=${DOCUMENTATION_REPOSITORY%%/*}" >> "${GITHUB_OUTPUT}"
+        echo "name=${DOCUMENTATION_REPOSITORY#*/}" >> "${GITHUB_OUTPUT}"
+
+    - id: app-token
+      name: Create documentation token
+      uses: actions/create-github-app-token@67018539274d69449ef7c02e8e71183d1719ab42 # v2.1.4
+      with:
+        app-id: ${{ inputs.app-id }}
+        private-key: ${{ inputs.app-private-key }}
+        owner: ${{ steps.docs-repository.outputs.owner }}
+        repositories: ${{ steps.docs-repository.outputs.name }}
+        permission-contents: write
+        permission-pull-requests: write
+
+    - name: Checkout documentation
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        repository: ${{ inputs.documentation-repository }}
+        token: ${{ steps.app-token.outputs.token }}
+        persist-credentials: false
+        path: release-docs
+
+    - id: render
+      name: Render release history
+      shell: bash
+      env:
+        PREPARED_PATH: ${{ inputs.prepared-path }}
+        VERIFICATION_PATH: ${{ inputs.verification-path }}
+      run: |
+        set -euo pipefail
+        python3 "${GITHUB_ACTION_PATH}/../../scripts/sync_release_history.py" \
+          --prepared "${PREPARED_PATH}" \
+          --verification "${VERIFICATION_PATH}" \
+          --docs-root release-docs \
+          > "${RUNNER_TEMP}/release-history-sync.json"
+
+    - id: pull-request
+      name: Create or update documentation pull request
+      uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
+      with:
+        token: ${{ steps.app-token.outputs.token }}
+        path: release-docs
+        commit-message: 'docs: synchronize LibreSign release history'
+        committer: GitHub <noreply@github.com>
+        author: github-workflows bot <noreply@github.com>
+        signoff: true
+        branch: automated/libresign-release-history
+        delete-branch: true
+        title: 'docs: synchronize LibreSign release history'
+        body: |
+          Automated release-history synchronization after successful PublicationVerification v1.
+
+          Release text is generated from the canonical per-major changelog in LibreSign/libresign. Do not edit generated release text manually in this repository.
+        add-paths: |
+          developer_manual/release-history/**
