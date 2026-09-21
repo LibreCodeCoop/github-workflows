@@ -1,0 +1,76 @@
+# SPDX-FileCopyrightText: 2026 LibreCode coop and contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+name: Check release authorization
+description: Verify that an actor has the consumer-required repository permission before a privileged release stage.
+
+inputs:
+  repository:
+    description: Repository in owner/name form.
+    required: true
+  actor:
+    description: GitHub login whose effective repository permission is checked.
+    required: true
+  minimum-permission:
+    description: Minimum required permission (read, triage, write, maintain or admin).
+    required: true
+  github-token:
+    description: Token used only for the repository permission lookup.
+    required: true
+
+outputs:
+  actual-permission:
+    description: Effective GitHub repository permission for the actor.
+    value: ${{ steps.check.outputs.actual-permission }}
+  authorized:
+    description: Whether the actor meets the configured minimum.
+    value: ${{ steps.check.outputs.authorized }}
+
+runs:
+  using: composite
+  steps:
+    - id: check
+      name: Check repository permission
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        RELEASE_REPOSITORY: ${{ inputs.repository }}
+        RELEASE_ACTOR: ${{ inputs.actor }}
+        RELEASE_MINIMUM_PERMISSION: ${{ inputs.minimum-permission }}
+      run: |
+        set -euo pipefail
+
+        result_file="${RUNNER_TEMP}/release-authorization.json"
+        set +e
+        python3 "${GITHUB_ACTION_PATH}/../../scripts/check_release_authorization.py" \
+          --repository "${RELEASE_REPOSITORY}" \
+          --actor "${RELEASE_ACTOR}" \
+          --minimum "${RELEASE_MINIMUM_PERMISSION}" \
+          > "${result_file}"
+        exit_code=$?
+        set -e
+
+        if [[ "${exit_code}" -ne 0 && "${exit_code}" -ne 3 ]]; then
+          cat "${result_file}" || true
+          exit "${exit_code}"
+        fi
+
+        actual_permission="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["actual_permission"])' "${result_file}")"
+        authorized="$(python3 -c 'import json,sys; print("true" if json.load(open(sys.argv[1]))["authorized"] else "false")' "${result_file}")"
+
+        echo "actual-permission=${actual_permission}" >> "${GITHUB_OUTPUT}"
+        echo "authorized=${authorized}" >> "${GITHUB_OUTPUT}"
+
+        {
+          echo "## Release authorization"
+          echo
+          echo "- Actor: `${RELEASE_ACTOR}`"
+          echo "- Required: `${RELEASE_MINIMUM_PERMISSION}`"
+          echo "- Actual: `${actual_permission}`"
+          echo "- Authorized: **${authorized}**"
+        } >> "${GITHUB_STEP_SUMMARY}"
+
+        if [[ "${authorized}" != "true" ]]; then
+          echo "::error::${RELEASE_ACTOR} has ${actual_permission} permission; ${RELEASE_MINIMUM_PERMISSION} is required."
+          exit 1
+        fi
