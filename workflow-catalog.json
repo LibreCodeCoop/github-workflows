@@ -12,6 +12,7 @@
     "npm-build",
     "openapi",
     "psalm",
+    "release-nextcloud-app",
     "reuse",
     "sync-workflow-templates"
   ]
