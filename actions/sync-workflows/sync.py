@@ -11,7 +11,7 @@ import os
 import shutil
 import subprocess
 import tempfile
-from dataclasses import dataclass
+from typing import NamedTuple
 from pathlib import Path
 
 LOCK_HEADER = (
@@ -21,8 +21,7 @@ LOCK_HEADER = (
 LOCK_SCHEMA_HEADER = "# workflow-lock-schema: 2\n"
 
 
-@dataclass(frozen=True)
-class LockEntry:
+class LockEntry(NamedTuple):
     workflow: str
     algorithm: str
     digest: str
