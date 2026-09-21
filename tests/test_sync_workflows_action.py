@@ -40,14 +40,19 @@ class SyncWorkflowsActionTest(unittest.TestCase):
             (target / ".github/workflows/lint.yml").write_text(content, encoding="utf-8")
 
             report = sync_module.sync(
-                source, target, target / ".github/actions-lock.txt"
+                source,
+                target,
+                target / ".github/actions-lock.txt",
+                platform_version="v0.4.0",
+                source_commit="a" * 40,
+                catalog_commit="b" * 40,
             )
 
             self.assertTrue(report["changed"])
             self.assertEqual(report["adopted"], ["lint.yml"])
             self.assertEqual(
                 sync_module.parse_lock(target / ".github/actions-lock.txt")["lint.yml"],
-                sync_module.md5(source_file),
+                sync_module.sha256(source_file),
             )
 
     def test_refuses_initial_local_divergence(self) -> None:
@@ -88,7 +93,7 @@ class SyncWorkflowsActionTest(unittest.TestCase):
             self.assertEqual(target_file.read_text(encoding="utf-8"), "name: New\n")
             self.assertEqual(
                 sync_module.parse_lock(target / ".github/actions-lock.txt")["lint.yml"],
-                sync_module.md5(source_file),
+                sync_module.sha256(source_file),
             )
 
     def test_skips_workflow_not_installed_in_consumer(self) -> None:
@@ -121,8 +126,12 @@ class SyncWorkflowsActionTest(unittest.TestCase):
                 source, target, target / ".github/actions-lock.txt"
             )
 
-            self.assertFalse(report["changed"])
-            self.assertEqual(report["unchanged"], ["lint.yml"])
+            self.assertTrue(report["changed"])
+            self.assertEqual(report["provenance_updated"], ["lint.yml"])
+            records = sync_module.parse_lock_records(
+                target / ".github/actions-lock.txt"
+            )
+            self.assertEqual(records["lint.yml"].algorithm, "sha256")
 
     def test_applies_consumer_local_patch(self) -> None:
         temporary, source, target = self.fixture()
@@ -158,7 +167,7 @@ class SyncWorkflowsActionTest(unittest.TestCase):
             )
             self.assertEqual(
                 sync_module.parse_lock(target / ".github/actions-lock.txt")["sync.yml"],
-                sync_module.md5(source_file),
+                sync_module.sha256(source_file),
             )
 
     def test_broken_patch_sets_draft_signal_and_keeps_catalog_lock(self) -> None:
@@ -226,12 +235,85 @@ class SyncWorkflowsActionTest(unittest.TestCase):
             self.assertEqual(report["removed_from_lock"], ["old.yml"])
             self.assertEqual(
                 sync_module.parse_lock(target / ".github/actions-lock.txt"),
-                {"lint.yml": sync_module.md5(current)},
+                {"lint.yml": sync_module.sha256(current)},
             )
             self.assertEqual(
                 stale.read_text(encoding="utf-8"),
                 "name: Local old workflow\n",
             )
+
+    def test_v2_lock_records_provenance_and_sha256(self) -> None:
+        temporary, source, target = self.fixture()
+        with temporary:
+            content = "name: Same\n"
+            source_file = source / "lint.yml"
+            source_file.write_text(content, encoding="utf-8")
+            (target / ".github/workflows/lint.yml").write_text(
+                content, encoding="utf-8"
+            )
+
+            report = sync_module.sync(
+                source,
+                target,
+                target / ".github/actions-lock.txt",
+                platform_version="v0.4.0",
+                source_commit="a" * 40,
+                catalog_commit="b" * 40,
+            )
+
+            self.assertTrue(report["changed"])
+            records = sync_module.parse_lock_records(
+                target / ".github/actions-lock.txt"
+            )
+            record = records["lint.yml"]
+            self.assertEqual(record.algorithm, "sha256")
+            self.assertEqual(record.digest, sync_module.sha256(source_file))
+            self.assertEqual(record.platform_version, "v0.4.0")
+            self.assertEqual(record.source_commit, "a" * 40)
+            self.assertEqual(record.catalog_commit, "b" * 40)
+
+    def test_v2_provenance_change_does_not_rewrite_workflow(self) -> None:
+        temporary, source, target = self.fixture()
+        with temporary:
+            content = "name: Same\n"
+            source_file = source / "lint.yml"
+            source_file.write_text(content, encoding="utf-8")
+            target_file = target / ".github/workflows/lint.yml"
+            target_file.write_text(content, encoding="utf-8")
+            sync_module.write_lock(
+                target / ".github/actions-lock.txt",
+                {
+                    "lint.yml": sync_module.LockEntry(
+                        workflow="lint.yml",
+                        algorithm="sha256",
+                        digest=sync_module.sha256(source_file),
+                        platform_version="v0.3.0",
+                        source_commit="a" * 40,
+                        catalog_commit="b" * 40,
+                    )
+                },
+            )
+            before = target_file.stat().st_mtime_ns
+
+            report = sync_module.sync(
+                source,
+                target,
+                target / ".github/actions-lock.txt",
+                platform_version="v0.4.0",
+                source_commit="c" * 40,
+                catalog_commit="d" * 40,
+            )
+
+            self.assertTrue(report["changed"])
+            self.assertEqual(report["provenance_updated"], ["lint.yml"])
+            self.assertEqual(target_file.stat().st_mtime_ns, before)
+            record = sync_module.parse_lock_records(
+                target / ".github/actions-lock.txt"
+            )["lint.yml"]
+            self.assertEqual(record.platform_version, "v0.4.0")
+            self.assertEqual(record.source_commit, "c" * 40)
+            self.assertEqual(record.catalog_commit, "d" * 40)
+
 
     def test_writes_single_line_github_output(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -266,6 +348,7 @@ class SyncWorkflowsActionTest(unittest.TestCase):
                 "unchanged": ["b.yml"],
                 "skipped": ["c.yml"],
                 "failed": ["a.yml"],
+                "provenance_updated": [],
                 "details": ["- a.yml: Patch failed"],
             }
         )

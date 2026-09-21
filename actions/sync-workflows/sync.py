@@ -11,23 +11,55 @@ import os
 import shutil
 import subprocess
 import tempfile
+from dataclasses import dataclass
 from pathlib import Path
 
 LOCK_HEADER = (
     "# SPDX-FileCopyrightText: 2025 Nextcloud GmbH and Nextcloud contributors\n"
     "# SPDX-" + "License-Identifier: MIT\n"
 )
+LOCK_SCHEMA_HEADER = "# workflow-lock-schema: 2\n"
+
+
+@dataclass(frozen=True)
+class LockEntry:
+    workflow: str
+    algorithm: str
+    digest: str
+    platform_version: str = ""
+    source_commit: str = ""
+    catalog_commit: str = ""
+
+    def to_json(self) -> str:
+        payload = {
+            "workflow": self.workflow,
+            "sha256": self.digest,
+            "platform_version": self.platform_version,
+            "source_commit": self.source_commit,
+            "catalog_commit": self.catalog_commit,
+        }
+        return json.dumps(payload, separators=(",", ":"), ensure_ascii=True)
 
 
 def md5(path: Path) -> str:
     return hashlib.md5(path.read_bytes(), usedforsecurity=False).hexdigest()
 
 
-def parse_lock(path: Path) -> dict[str, str]:
+def sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _valid_hex(value: str, length: int) -> bool:
+    return len(value) == length and all(
+        character in "0123456789abcdef" for character in value
+    )
+
+
+def parse_lock_records(path: Path) -> dict[str, LockEntry]:
     if not path.is_file():
         return {}
 
-    entries: dict[str, str] = {}
+    entries: dict[str, LockEntry] = {}
     for line_number, raw_line in enumerate(
         path.read_text(encoding="utf-8").splitlines(),
         start=1,
@@ -36,29 +68,107 @@ def parse_lock(path: Path) -> dict[str, str]:
         if not line or line.startswith("#"):
             continue
 
-        parts = line.split()
-        if len(parts) != 2:
-            raise ValueError(f"invalid lock entry at line {line_number}")
+        if line.startswith("{"):
+            try:
+                payload = json.loads(line)
+            except json.JSONDecodeError as error:
+                raise ValueError(
+                    f"invalid lock JSON at line {line_number}"
+                ) from error
 
-        digest, workflow = parts
-        if (
-            len(digest) != 32
-            or any(character not in "0123456789abcdef" for character in digest)
-        ):
-            raise ValueError(f"invalid MD5 at line {line_number}")
+            if not isinstance(payload, dict):
+                raise ValueError(f"invalid lock entry at line {line_number}")
 
-        if workflow in entries:
-            raise ValueError(f"duplicate lock entry: {workflow}")
-        entries[workflow] = digest
+            workflow = payload.get("workflow")
+            digest = payload.get("sha256")
+            if not isinstance(workflow, str) or not workflow:
+                raise ValueError(f"invalid workflow at line {line_number}")
+            if not isinstance(digest, str) or not _valid_hex(digest, 64):
+                raise ValueError(f"invalid SHA-256 at line {line_number}")
+
+            entry = LockEntry(
+                workflow=workflow,
+                algorithm="sha256",
+                digest=digest,
+                platform_version=str(payload.get("platform_version", "")),
+                source_commit=str(payload.get("source_commit", "")),
+                catalog_commit=str(payload.get("catalog_commit", "")),
+            )
+        else:
+            parts = line.split()
+            if len(parts) != 2:
+                raise ValueError(f"invalid lock entry at line {line_number}")
+
+            digest, workflow = parts
+            if not _valid_hex(digest, 32):
+                raise ValueError(f"invalid MD5 at line {line_number}")
+            entry = LockEntry(
+                workflow=workflow,
+                algorithm="md5",
+                digest=digest,
+            )
+
+        if entry.workflow in entries:
+            raise ValueError(f"duplicate lock entry: {entry.workflow}")
+        entries[entry.workflow] = entry
 
     return entries
 
 
-def write_lock(path: Path, entries: dict[str, str]) -> None:
+def parse_lock(path: Path) -> dict[str, str]:
+    return {
+        name: entry.digest
+        for name, entry in parse_lock_records(path).items()
+    }
+
+
+def write_lock(
+    path: Path,
+    entries: dict[str, LockEntry | str],
+) -> None:
     lines = [LOCK_HEADER.rstrip("\n"), ""]
-    lines.extend(f"{entries[name]} {name}" for name in sorted(entries))
+
+    if entries and all(isinstance(value, str) for value in entries.values()):
+        lines.extend(
+            f"{entries[name]} {name}"
+            for name in sorted(entries)
+        )
+    else:
+        lines.extend([LOCK_SCHEMA_HEADER.rstrip("\n"), ""])
+        for name in sorted(entries):
+            value = entries[name]
+            if isinstance(value, str):
+                raise ValueError("cannot mix legacy and v2 lock entries")
+            lines.append(value.to_json())
+
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def matches_source(entry: LockEntry, source_file: Path) -> bool:
+    if entry.algorithm == "md5":
+        return entry.digest == md5(source_file)
+    if entry.algorithm == "sha256":
+        return entry.digest == sha256(source_file)
+    raise ValueError(f"unsupported lock digest algorithm: {entry.algorithm}")
+
+
+def desired_entry(
+    workflow: str,
+    source_file: Path,
+    *,
+    platform_version: str,
+    source_commit: str,
+    catalog_commit: str,
+) -> LockEntry:
+    return LockEntry(
+        workflow=workflow,
+        algorithm="sha256",
+        digest=sha256(source_file),
+        platform_version=platform_version,
+        source_commit=source_commit,
+        catalog_commit=catalog_commit,
+    )
 
 
 def apply_patch(target_root: Path, target_file: Path) -> tuple[bool, str]:
@@ -115,19 +225,24 @@ def sync(
     source: Path,
     target: Path,
     lock_path: Path,
+    *,
+    platform_version: str = "",
+    source_commit: str = "",
+    catalog_commit: str = "",
 ) -> dict[str, object]:
     if not source.is_dir():
         raise ValueError(f"source directory does not exist: {source}")
     if not target.is_dir():
         raise ValueError(f"target directory does not exist: {target}")
 
-    entries = parse_lock(lock_path)
+    entries = parse_lock_records(lock_path)
     updated: list[str] = []
     adopted: list[str] = []
     unchanged: list[str] = []
     skipped: list[str] = []
     failed: list[str] = []
     diverged: list[str] = []
+    provenance_updated: list[str] = []
     details: list[str] = []
 
     source_by_name = {path.name: path for path in workflow_files(source)}
@@ -154,10 +269,16 @@ def sync(
                 skipped.append(name)
             continue
 
-        new_version = md5(source_file)
-        locked_version = entries.get(name, "")
+        locked = entries.get(name)
+        desired = desired_entry(
+            name,
+            source_file,
+            platform_version=platform_version,
+            source_commit=source_commit,
+            catalog_commit=catalog_commit,
+        )
 
-        if not locked_version:
+        if locked is None:
             expected, patch_ok, patch_message = render_expected(
                 source_file, target, target_file
             )
@@ -174,13 +295,13 @@ def sync(
                 )
                 continue
 
-            entries[name] = new_version
+            entries[name] = desired
             adopted.append(name)
             if patch_message:
                 details.append(f"- {name}: adopted; {patch_message}")
             continue
 
-        if locked_version == new_version:
+        if matches_source(locked, source_file):
             expected, patch_ok, patch_message = render_expected(
                 source_file, target, target_file
             )
@@ -197,12 +318,19 @@ def sync(
                 )
                 continue
 
-            unchanged.append(name)
+            if locked != desired:
+                entries[name] = desired
+                provenance_updated.append(name)
+                details.append(
+                    f"- {name}: lock provenance migrated/updated without rewriting workflow"
+                )
+            else:
+                unchanged.append(name)
             continue
 
         shutil.copyfile(source_file, target_file)
         patch_ok, patch_message = apply_patch(target, target_file)
-        entries[name] = new_version
+        entries[name] = desired
         updated.append(name)
 
         if patch_message:
@@ -210,7 +338,9 @@ def sync(
         if not patch_ok:
             failed.append(name)
 
-    lock_changed = bool(updated or adopted or stale_entries)
+    lock_changed = bool(
+        updated or adopted or stale_entries or provenance_updated
+    )
     if lock_changed:
         write_lock(lock_path, entries)
 
@@ -224,6 +354,7 @@ def sync(
         "skipped": skipped,
         "failed": failed,
         "diverged": diverged,
+        "provenance_updated": provenance_updated,
         "details": details,
         "removed_from_lock": stale_entries,
     }
@@ -235,6 +366,7 @@ def render_summary(report: dict[str, object]) -> str:
         "",
         f"- Updated: {len(report['updated'])}",
         f"- Adopted: {len(report['adopted'])}",
+        f"- Provenance updated: {len(report['provenance_updated'])}",
         f"- Unchanged: {len(report['unchanged'])}",
         f"- Skipped: {len(report['skipped'])}",
         f"- Failed: {len(report['failed'])}",
@@ -266,6 +398,9 @@ def main() -> int:
     parser.add_argument("--source", required=True, type=Path)
     parser.add_argument("--target", required=True, type=Path)
     parser.add_argument("--lock-file", default=".github/actions-lock.txt")
+    parser.add_argument("--platform-version", default="")
+    parser.add_argument("--source-commit", default="")
+    parser.add_argument("--catalog-commit", default="")
     args = parser.parse_args()
 
     try:
@@ -273,7 +408,14 @@ def main() -> int:
         target = args.target.resolve()
         lock_path = target / args.lock_file
 
-        report = sync(source, target, lock_path)
+        report = sync(
+            source,
+            target,
+            lock_path,
+            platform_version=args.platform_version,
+            source_commit=args.source_commit,
+            catalog_commit=args.catalog_commit,
+        )
 
         summary = render_summary(report)
         summary_root = Path(os.environ.get("RUNNER_TEMP", target / ".github"))

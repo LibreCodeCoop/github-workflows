@@ -15,6 +15,18 @@ inputs:
     description: Lock file path relative to the consumer repository.
     required: false
     default: .github/actions-lock.txt
+  platform-version:
+    description: Released github-workflows platform version that produced the catalog.
+    required: false
+    default: ''
+  source-commit:
+    description: Immutable github-workflows source commit used by the synchronization run.
+    required: false
+    default: ''
+  catalog-commit:
+    description: Immutable workflow catalog commit being materialized.
+    required: false
+    default: ''
 
 outputs:
   changed:
@@ -50,8 +62,14 @@ runs:
         SYNC_SOURCE: ${{ inputs.source }}
         SYNC_TARGET: ${{ inputs.target }}
         SYNC_LOCK_FILE: ${{ inputs.lock-file }}
+        SYNC_PLATFORM_VERSION: ${{ inputs.platform-version }}
+        SYNC_SOURCE_COMMIT: ${{ inputs.source-commit }}
+        SYNC_CATALOG_COMMIT: ${{ inputs.catalog-commit }}
       run: >-
         python3 "$SYNC_ACTION_PATH/sync.py"
         --source "$SYNC_SOURCE"
         --target "$SYNC_TARGET"
         --lock-file "$SYNC_LOCK_FILE"
+        --platform-version "$SYNC_PLATFORM_VERSION"
+        --source-commit "$SYNC_SOURCE_COMMIT"
+        --catalog-commit "$SYNC_CATALOG_COMMIT"
