@@ -1,6 +1,6 @@
 --- upstream/vendor/nextcloud/sync-workflow-templates.yml
 +++ workflow-templates/sync-workflow-templates.yml
-@@ -1,13 +1,19 @@
+@@ -1,13 +1,16 @@
  # This workflow is provided via the organization template repository
  #
 -# https://github.com/nextcloud/.github
@@ -20,7 +20,7 @@
  name: Update workflows
  on:
    workflow_dispatch:
-@@ -26,9 +32,6 @@
+@@ -26,9 +29,6 @@
        matrix:
          branches:
            - ${{ github.event.repository.default_branch }}
@@ -30,7 +30,7 @@
  
      name: Update workflows in ${{ matrix.branches }}
  
-@@ -42,12 +45,111 @@
+@@ -42,12 +42,111 @@
          with:
            require: admin
  
@@ -143,7 +143,7 @@
  
        - name: Checkout app
          uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-@@ -56,86 +158,33 @@
+@@ -56,86 +155,33 @@
            path: target
            ref: ${{ matrix.branches }}
  
