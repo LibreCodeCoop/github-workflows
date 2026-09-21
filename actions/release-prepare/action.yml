@@ -1,0 +1,179 @@
+# SPDX-FileCopyrightText: 2026 LibreCode coop and contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+name: Prepare release
+description: Build a ReleasePlan v1, authorize the actor, create/reuse the deterministic release PR and persist its contracts.
+
+inputs:
+  branch:
+    description: Release branch to prepare.
+    required: true
+  ref:
+    description: Optional planning ref or commit SHA.
+    required: false
+    default: ''
+  version:
+    description: Optional explicit release version override.
+    required: false
+    default: ''
+  channel:
+    description: Release channel (alpha, beta, rc or final).
+    required: false
+    default: final
+  mode:
+    description: Release mode (normal or security).
+    required: false
+    default: normal
+  safe-public-text:
+    description: Optional explicitly public-safe release text.
+    required: false
+    default: ''
+  ignore-open-backport:
+    description: Explicitly override matching open backport blockers.
+    required: false
+    default: 'false'
+  create-follow-up-milestone:
+    description: Preserve the maintainer decision for post-merge milestone transition.
+    required: false
+    default: 'false'
+  config-path:
+    description: Consumer release configuration path.
+    required: false
+    default: .nextcloud-release.yml
+  actor:
+    description: GitHub login that requested mutating release preparation.
+    required: true
+  github-token:
+    description: Read-only caller token used for planning and permission lookup.
+    required: true
+  app-id:
+    description: GitHub App id used for the short-lived mutation token.
+    required: true
+  app-private-key:
+    description: GitHub App private key used for the short-lived mutation token.
+    required: true
+
+outputs:
+  preparation-id:
+    description: ReleasePreparation v1 id.
+    value: ${{ steps.prepare.outputs.preparation-id }}
+  pull-request-number:
+    description: Generated release pull request number.
+    value: ${{ steps.prepare.outputs.pull-request-number }}
+  pull-request-url:
+    description: Generated release pull request URL.
+    value: ${{ steps.prepare.outputs.pull-request-url }}
+  artifact-name:
+    description: Deterministic Actions artifact containing ReleasePlan v1 and ReleasePreparation v1.
+    value: ${{ steps.prepare.outputs.artifact-name }}
+  tool-version:
+    description: Exact release-tool version used.
+    value: ${{ steps.plan.outputs.tool-version }}
+
+runs:
+  using: composite
+  steps:
+    - id: plan
+      name: Build release plan
+      uses: $/actions/release-plan
+      with:
+        branch: ${{ inputs.branch }}
+        ref: ${{ inputs.ref }}
+        version: ${{ inputs.version }}
+        channel: ${{ inputs.channel }}
+        mode: ${{ inputs.mode }}
+        safe-public-text: ${{ inputs.safe-public-text }}
+        ignore-open-backport: ${{ inputs.ignore-open-backport }}
+        create-follow-up-milestone: ${{ inputs.create-follow-up-milestone }}
+        config-path: ${{ inputs.config-path }}
+        github-token: ${{ inputs.github-token }}
+
+    - id: authorization-config
+      name: Read preparation authorization policy
+      shell: bash
+      env:
+        RELEASE_TOOL_PATH: ${{ steps.plan.outputs.tool-path }}
+        RELEASE_CONFIG_PATH: ${{ inputs.config-path }}
+      run: |
+        set -euo pipefail
+        config_file="${RUNNER_TEMP}/release-consumer-config.json"
+        php "${RELEASE_TOOL_PATH}" config:validate --config "${RELEASE_CONFIG_PATH}" --root . --json > "${config_file}"
+        minimum_permission="$(php -r '$c=json_decode(file_get_contents($argv[1]),true,512,JSON_THROW_ON_ERROR); echo $c["authorization"]["prepare_min_permission"];' "${config_file}")"
+        echo "minimum-permission=${minimum_permission}" >> "${GITHUB_OUTPUT}"
+
+    - name: Authorize preparation actor
+      uses: $/actions/check-release-authorization
+      with:
+        repository: ${{ github.repository }}
+        actor: ${{ inputs.actor }}
+        minimum-permission: ${{ steps.authorization-config.outputs.minimum-permission }}
+        github-token: ${{ inputs.github-token }}
+
+    - id: repository
+      name: Resolve repository identity
+      shell: bash
+      env:
+        RELEASE_REPOSITORY: ${{ github.repository }}
+      run: |
+        set -euo pipefail
+        echo "owner=${RELEASE_REPOSITORY%%/*}" >> "${GITHUB_OUTPUT}"
+        echo "name=${RELEASE_REPOSITORY#*/}" >> "${GITHUB_OUTPUT}"
+
+    - id: app-token
+      name: Create scoped GitHub App token
+      uses: actions/create-github-app-token@67018539274d69449ef7c02e8e71183d1719ab42 # v2.1.4
+      with:
+        app-id: ${{ inputs.app-id }}
+        private-key: ${{ inputs.app-private-key }}
+        owner: ${{ steps.repository.outputs.owner }}
+        repositories: ${{ steps.repository.outputs.name }}
+        permission-contents: write
+        permission-pull-requests: write
+
+    - id: prepare
+      name: Create or reuse release preparation pull request
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+        RELEASE_TOOL_PATH: ${{ steps.plan.outputs.tool-path }}
+        RELEASE_PLAN_PATH: ${{ steps.plan.outputs.plan-path }}
+        RELEASE_CONFIG_PATH: ${{ inputs.config-path }}
+      run: |
+        set -euo pipefail
+        state_dir="${RUNNER_TEMP}/release-preparation-state"
+        mkdir -p "${state_dir}"
+        cp "${RELEASE_PLAN_PATH}" "${state_dir}/release-plan.json"
+
+        php "${RELEASE_TOOL_PATH}" release:prepare \
+          --plan "${RELEASE_PLAN_PATH}" \
+          --config "${RELEASE_CONFIG_PATH}" \
+          --root . \
+          --apply \
+          --json \
+          > "${state_dir}/release-preparation.json"
+
+        preparation_id="$(php -r '$p=json_decode(file_get_contents($argv[1]),true,512,JSON_THROW_ON_ERROR); echo $p["id"];' "${state_dir}/release-preparation.json")"
+        pr_number="$(php -r '$p=json_decode(file_get_contents($argv[1]),true,512,JSON_THROW_ON_ERROR); echo $p["pull_request"]["number"];' "${state_dir}/release-preparation.json")"
+        pr_url="$(php -r '$p=json_decode(file_get_contents($argv[1]),true,512,JSON_THROW_ON_ERROR); echo $p["pull_request"]["url"];' "${state_dir}/release-preparation.json")"
+        artifact_name="release-preparation-pr-${pr_number}"
+
+        echo "preparation-id=${preparation_id}" >> "${GITHUB_OUTPUT}"
+        echo "pull-request-number=${pr_number}" >> "${GITHUB_OUTPUT}"
+        echo "pull-request-url=${pr_url}" >> "${GITHUB_OUTPUT}"
+        echo "artifact-name=${artifact_name}" >> "${GITHUB_OUTPUT}"
+        echo "state-dir=${state_dir}" >> "${GITHUB_OUTPUT}"
+
+        {
+          echo "## Release preparation"
+          echo
+          echo "- Preparation: `${preparation_id}`"
+          echo "- Pull request: ${pr_url}"
+          echo "- State artifact: `${artifact_name}`"
+        } >> "${GITHUB_STEP_SUMMARY}"
+
+    - name: Persist release preparation contracts
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      with:
+        name: ${{ steps.prepare.outputs.artifact-name }}
+        path: ${{ steps.prepare.outputs.state-dir }}
+        if-no-files-found: error
