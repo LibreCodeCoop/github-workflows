@@ -8,9 +8,9 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SCRIPT = ROOT / "actions" / "setup-release-tool" / "setup.sh"
-ACTION = ROOT / "actions" / "setup-release-tool" / "action.yml"
-VERSION = ROOT / "actions" / "setup-release-tool" / "release-tool-version"
+SCRIPT = ROOT / "actions" / "release-tool-setup" / "setup.sh"
+ACTION = ROOT / "actions" / "release-tool-setup" / "action.yml"
+VERSION = ROOT / "actions" / "release-tool-setup" / "release-tool-version"
 
 
 class SetupReleaseToolActionTest(unittest.TestCase):

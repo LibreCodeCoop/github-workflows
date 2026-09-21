@@ -40,7 +40,7 @@ runs:
   steps:
     - id: setup
       name: Setup release-tool
-      uses: $/actions/setup-release-tool
+      uses: $/actions/release-tool-setup
 
     - id: validate
       name: Validate release consumer

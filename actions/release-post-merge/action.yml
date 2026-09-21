@@ -51,7 +51,7 @@ runs:
   steps:
     - id: restore
       name: Restore preparation contracts
-      uses: $/actions/restore-release-artifact
+      uses: $/actions/release-artifact-restore
       with:
         repository: ${{ github.repository }}
         artifact-name: release-preparation-pr-${{ inputs.pull-request-number }}
@@ -62,7 +62,7 @@ runs:
 
     - id: setup
       name: Setup release-tool
-      uses: $/actions/setup-release-tool
+      uses: $/actions/release-tool-setup
 
     - id: authorization-config
       name: Read merge authorization policy
@@ -78,7 +78,7 @@ runs:
         echo "minimum-permission=${minimum_permission}" >> "${GITHUB_OUTPUT}"
 
     - name: Authorize release PR merger
-      uses: $/actions/check-release-authorization
+      uses: $/actions/release-authorization
       with:
         repository: ${{ github.repository }}
         actor: ${{ inputs.merger }}

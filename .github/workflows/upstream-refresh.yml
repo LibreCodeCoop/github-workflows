@@ -12,7 +12,7 @@ on:
       - 'upstream/sources.json'
       - 'upstream/templates.json'
       - 'patches/nextcloud/**'
-      - '.github/workflows/refresh-upstream.yml'
+      - '.github/workflows/upstream-refresh.yml'
   schedule:
     - cron: '17 3 * * 0'
 

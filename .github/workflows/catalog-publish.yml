@@ -12,7 +12,7 @@ on:
       - 'workflow-templates/**'
       - 'workflow-catalog.json'
       - 'scripts/sync_catalog.py'
-      - '.github/workflows/publish-workflow-catalog.yml'
+      - '.github/workflows/catalog-publish.yml'
 
 permissions:
   contents: read
