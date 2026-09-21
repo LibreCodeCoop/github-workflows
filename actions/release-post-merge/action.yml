@@ -114,6 +114,7 @@ runs:
         RELEASE_TOOL_PATH: ${{ steps.setup.outputs.path }}
         RELEASE_CONFIG_PATH: ${{ inputs.config-path }}
         RELEASE_STATE_DIR: ${{ runner.temp }}/release-post-merge-state
+        PREPARED_RELEASE_ID: ${{ steps.finalize.outputs.prepared-release-id }}
       run: |
         set -euo pipefail
         php "${RELEASE_TOOL_PATH}" release:finalize \
@@ -201,7 +202,7 @@ runs:
         {
           echo "## Release draft"
           echo
-          echo "- Prepared release: `${{ steps.finalize.outputs.prepared-release-id }}`"
+          echo "- Prepared release: `${PREPARED_RELEASE_ID}`"
           echo "- Draft: `${draft_id}`"
           echo "- GitHub Release: ${release_url}"
           echo "- State artifact: `${artifact_name}`"
