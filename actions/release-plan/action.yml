@@ -54,6 +54,12 @@ outputs:
   tool-version:
     description: Exact release-tool version used for planning.
     value: ${{ steps.setup.outputs.version }}
+  tool-path:
+    description: Verified release-tool PHAR path for later steps in the same job.
+    value: ${{ steps.setup.outputs.path }}
+  plan-path:
+    description: ReleasePlan v1 JSON path for later steps in the same job.
+    value: ${{ steps.plan.outputs.plan-path }}
 
 runs:
   using: composite
@@ -129,6 +135,7 @@ runs:
           cat "${plan_file}"
           echo "${delimiter}"
           echo "ready=${ready}"
+          echo "plan-path=${plan_file}"
         } >> "${GITHUB_OUTPUT}"
 
         {
