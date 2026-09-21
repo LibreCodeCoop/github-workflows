@@ -39,6 +39,7 @@ class ValidateReleaseConsumerActionTest(unittest.TestCase):
                 "#!/usr/bin/env bash\n"
                 "set -euo pipefail\n"
                 "printf '%s\\n' \"$*\" >> \"${CALLS_FILE}\"\n"
+                "if [[ \"$*\" == *'config:validate'* ]]; then exit 0; fi\n"
                 "if [[ \"$*\" == *'metadata:inspect'* ]]; then\n"
                 "  cat <<'JSON'\n"
                 "{\"schema\":1,\"valid\":true,\"version\":\"16.0.0-dev.2\",\"major\":16,\"development\":true,\"changelog_path\":\"docs/changelogs/changelog-16.md\"}\n"
