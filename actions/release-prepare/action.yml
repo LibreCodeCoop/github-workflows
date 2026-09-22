@@ -38,10 +38,6 @@ inputs:
   github-token:
     description: Read-only caller token used for planning and permission lookup.
     required: true
-  app-id:
-    description: Legacy GitHub App id retained for consumer compatibility.
-    required: false
-    default: ''
   app-slug:
     description: Public GitHub App slug used to resolve its client id.
     required: false
