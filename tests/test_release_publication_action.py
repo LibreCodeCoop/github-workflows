@@ -12,7 +12,9 @@ class ReleasePublicationActionTest(unittest.TestCase):
     def test_restores_state_from_post_merge_run(self) -> None:
         content = ACTION.read_text(encoding="utf-8")
         self.assertIn("release-state-${{ inputs.github-release-id }}", content)
-        self.assertIn("expected-event: pull_request", content)
+        self.assertIn("post-merge-event:", content)
+        self.assertIn("default: pull_request", content)
+        self.assertIn("expected-event: ${{ inputs.post-merge-event }}", content)
         self.assertIn("expected-workflow-path:", content)
 
     def test_retry_loop_reuses_publication_verify_contract(self) -> None:
