@@ -28,8 +28,6 @@ class ReleasePlanActionTest(unittest.TestCase):
             "ref:",
             "version:",
             "channel:",
-            "mode:",
-            "safe-public-text:",
             "ignore-open-backport:",
             "create-follow-up-milestone:",
             "config-path:",
@@ -40,6 +38,8 @@ class ReleasePlanActionTest(unittest.TestCase):
             self.assertIn(expected, content)
 
         for transitional in (
+            "mode:",
+            "safe-public-text:",
             "blocker-queries:",
             "appinfo-path:",
             "changelog-path:",
