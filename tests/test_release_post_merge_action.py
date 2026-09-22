@@ -15,8 +15,11 @@ class ReleasePostMergeActionTest(unittest.TestCase):
         validate = content.index("Validate GitHub App credentials")
         restore = content.index("Restore preparation contracts")
         self.assertLess(validate, restore)
-        self.assertIn("LIBRECODE_WORKFLOW_APP_ID", content)
         self.assertIn("LIBRECODE_WORKFLOW_APP_PRIVATE_KEY", content)
+        self.assertIn("librecode-workflow-automation", content)
+        self.assertIn("/apps/${RELEASE_APP_SLUG}", content)
+        self.assertNotIn("\n  app-id:", content)
+        self.assertNotIn("inputs.app-id", content)
 
     def test_authorization_happens_before_mutation(self) -> None:
         content = ACTION.read_text(encoding="utf-8")
@@ -31,7 +34,8 @@ class ReleasePostMergeActionTest(unittest.TestCase):
 
     def test_mutating_stages_use_scoped_tokens(self) -> None:
         content = ACTION.read_text(encoding="utf-8")
-        self.assertEqual(2, content.count("actions/create-github-app-token@67018539274d69449ef7c02e8e71183d1719ab42"))
+        self.assertEqual(2, content.count("actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1"))
+        self.assertEqual(2, content.count("client-id: ${{ steps.app-identity.outputs.client-id }}"))
         self.assertIn("permission-contents: write", content)
         self.assertIn("permission-pull-requests: write", content)
         self.assertNotIn("permission-issues: write", content)
@@ -51,7 +55,7 @@ class ReleasePostMergeActionTest(unittest.TestCase):
         self.assertIn("milestone:transition", content)
         self.assertIn("release:draft", content)
         self.assertIn('artifact_name="release-state-${release_id}"', content)
-        self.assertIn("actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02", content)
+        self.assertIn("actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a", content)
 
     def test_restore_action_can_bind_artifact_to_origin_workflow(self) -> None:
         content = RESTORE.read_text(encoding="utf-8")
