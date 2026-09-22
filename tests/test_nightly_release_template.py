@@ -54,11 +54,19 @@ class NightlyReleaseTemplateTest(unittest.TestCase):
 
         self.assertNotIn(".\\\\\\\\n'", content)
 
+    def test_release_notes_prefer_pull_requests_with_commit_fallback(self) -> None:
+        content = TEMPLATE.read_text(encoding="utf-8")
+
+        self.assertIn('commits/${sha}/pulls', content)
+        self.assertIn('unique_by(.number)', content)
+        self.assertIn('([#%s](%s))', content)
+        self.assertIn("git show -s --format='%s'", content)
+
     def test_checkout_credentials_are_not_persisted(self) -> None:
         content = TEMPLATE.read_text(encoding="utf-8")
 
         self.assertNotIn("persist-credentials: true", content)
-        self.assertIn("permissions:\n  contents: write", content)
+        self.assertIn("permissions:\n  contents: write\n  pull-requests: read", content)
         self.assertNotIn("actions: write", content)
 
     def test_concurrency_only_cancels_runs_for_the_same_branch(self) -> None:
