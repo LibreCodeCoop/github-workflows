@@ -35,8 +35,19 @@ class NightlyReleaseTemplateTest(unittest.TestCase):
         self.assertIn("gh release create nightly", content)
         self.assertIn("nextcloud-libraries/nextcloud-appstore-push-action@", content)
         self.assertIn("nightly: true", content)
-        self.assertIn("printf 'Automated nightly build from `%s`.", content)
-        self.assertIn("printf 'Generated from commit `%s`.", content)
+        self.assertIn("printf 'Automated nightly build from `%s`.\\\\n'", content)
+        self.assertIn("printf 'Generated from commit `%s`.\\\\n'", content)
+        self.assertNotIn("from `%s`.\\\\\\\\n", content)
+
+    def test_server_is_available_before_makefile_packaging(self) -> None:
+        content = TEMPLATE.read_text(encoding="utf-8")
+
+        server = content.index("- name: Resolve Nextcloud server download")
+        package = content.index("- name: Package with Makefile")
+        sign = content.index("- name: Sign app")
+
+        self.assertLess(server, package)
+        self.assertLess(package, sign)
 
     def test_checkout_credentials_are_not_persisted(self) -> None:
         content = TEMPLATE.read_text(encoding="utf-8")
