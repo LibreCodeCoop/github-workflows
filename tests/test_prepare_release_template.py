@@ -43,18 +43,18 @@ class PrepareReleaseTemplateTest(unittest.TestCase):
 
     def test_template_delegates_all_release_stages_to_versioned_actions(self) -> None:
         content = TEMPLATE.read_text(encoding="utf-8")
-        sha = "5a16fb0ae5b846117f70e1d86a1d25e46492c333"
+        sha = "18e6c30c33a5d81b0248a7d865536965eaa93329"
 
         self.assertIn(
-            f"actions/release-prepare@{sha} # v0.6.2",
+            f"actions/release-prepare@{sha} # v0.6.3",
             content,
         )
         self.assertIn(
-            f"actions/release-post-merge@{sha} # v0.6.2",
+            f"actions/release-post-merge@{sha} # v0.6.3",
             content,
         )
         self.assertIn(
-            f"actions/release-publication@{sha} # v0.6.2",
+            f"actions/release-publication@{sha} # v0.6.3",
             content,
         )
 
