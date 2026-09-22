@@ -40,15 +40,15 @@ permissions are required.
 
 `LibreCodeCoop/github-workflows` stores:
 
-- Actions variable `LIBRECODE_WORKFLOW_APP_ID`;
+- Actions secret `LIBRECODE_WORKFLOW_APP_ID`;
 - Actions secret `LIBRECODE_WORKFLOW_APP_PRIVATE_KEY`.
 
 Consumer repositories that execute write-capable release orchestration also need
-those values available in their own Actions context, either directly at
+both secrets available in their own Actions context, either directly at
 repository level or inherited from an organization configuration that includes
 the repository:
 
-- Actions variable `LIBRECODE_WORKFLOW_APP_ID`;
+- Actions secret `LIBRECODE_WORKFLOW_APP_ID`;
 - Actions secret `LIBRECODE_WORKFLOW_APP_PRIVATE_KEY`.
 
 The GitHub App installation must also include the consumer repository. A
