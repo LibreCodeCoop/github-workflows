@@ -43,20 +43,27 @@ class PrepareReleaseTemplateTest(unittest.TestCase):
 
     def test_template_delegates_all_release_stages_to_versioned_actions(self) -> None:
         content = TEMPLATE.read_text(encoding="utf-8")
-        sha = "622599cc128ec55007b443d2908f78da930b8a21"
+        sha = "5a16fb0ae5b846117f70e1d86a1d25e46492c333"
 
         self.assertIn(
-            f"actions/release-prepare@{sha} # v0.5.0",
+            f"actions/release-prepare@{sha} # v0.6.2",
             content,
         )
         self.assertIn(
-            f"actions/release-post-merge@{sha} # v0.5.0",
+            f"actions/release-post-merge@{sha} # v0.6.2",
             content,
         )
         self.assertIn(
-            f"actions/release-publication@{sha} # v0.5.0",
+            f"actions/release-publication@{sha} # v0.6.2",
             content,
         )
+
+    def test_release_mutation_credentials_use_actions_secrets(self) -> None:
+        content = TEMPLATE.read_text(encoding="utf-8")
+
+        self.assertEqual(2, content.count("secrets.LIBRECODE_WORKFLOW_APP_ID"))
+        self.assertEqual(2, content.count("secrets.LIBRECODE_WORKFLOW_APP_PRIVATE_KEY"))
+        self.assertNotIn("vars.LIBRECODE_WORKFLOW_APP_ID", content)
 
     def test_template_keeps_permissions_stage_scoped(self) -> None:
         content = TEMPLATE.read_text(encoding="utf-8")
