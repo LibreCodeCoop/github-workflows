@@ -16,6 +16,10 @@ inputs:
     description: Consumer workflow path that produced the finalized release-state artifact.
     required: false
     default: .github/workflows/prepare-release.yml
+  post-merge-event:
+    description: Workflow event that produced the finalized release-state artifact.
+    required: false
+    default: pull_request
   attempts:
     description: Maximum PublicationVerification attempts while publisher/App Store state converges.
     required: false
@@ -46,7 +50,7 @@ runs:
         artifact-name: release-state-${{ inputs.github-release-id }}
         destination: ${{ runner.temp }}/release-publication-state
         github-token: ${{ inputs.github-token }}
-        expected-event: pull_request
+        expected-event: ${{ inputs.post-merge-event }}
         expected-workflow-path: ${{ inputs.post-merge-workflow-path }}
 
     - id: setup
