@@ -10,6 +10,14 @@ RESTORE = ROOT / "actions" / "release-artifact-restore" / "action.yml"
 
 
 class ReleasePostMergeActionTest(unittest.TestCase):
+    def test_credentials_are_validated_before_artifact_restore(self) -> None:
+        content = ACTION.read_text(encoding="utf-8")
+        validate = content.index("Validate GitHub App credentials")
+        restore = content.index("Restore preparation contracts")
+        self.assertLess(validate, restore)
+        self.assertIn("LIBRECODE_WORKFLOW_APP_ID", content)
+        self.assertIn("LIBRECODE_WORKFLOW_APP_PRIVATE_KEY", content)
+
     def test_authorization_happens_before_mutation(self) -> None:
         content = ACTION.read_text(encoding="utf-8")
         authorize = content.index("Authorize release PR merger")

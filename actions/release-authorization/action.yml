@@ -64,10 +64,10 @@ runs:
         {
           echo "## Release authorization"
           echo
-          echo "- Actor: `${RELEASE_ACTOR}`"
-          echo "- Required: `${RELEASE_MINIMUM_PERMISSION}`"
-          echo "- Actual: `${actual_permission}`"
-          echo "- Authorized: **${authorized}**"
+          printf -- '- Actor: `%s`\n' "${RELEASE_ACTOR}"
+          printf -- '- Required: `%s`\n' "${RELEASE_MINIMUM_PERMISSION}"
+          printf -- '- Actual: `%s`\n' "${actual_permission}"
+          printf -- '- Authorized: **%s**\n' "${authorized}"
         } >> "${GITHUB_STEP_SUMMARY}"
 
         if [[ "${authorized}" != "true" ]]; then
