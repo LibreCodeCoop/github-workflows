@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import importlib.util
 import io
+from email.message import Message
 import tempfile
 import unittest
 from pathlib import Path
@@ -20,6 +21,30 @@ spec.loader.exec_module(module)
 
 
 class RestoreReleaseArtifactTest(unittest.TestCase):
+    def test_cross_host_redirect_strips_github_auth_headers(self) -> None:
+        request = module.Request(
+            "https://api.github.com/repos/example/project/actions/artifacts/1/zip",
+            headers={
+                "Authorization": "Bearer secret",
+                "Accept": "application/vnd.github+json",
+                "X-GitHub-Api-Version": "2022-11-28",
+            },
+        )
+        redirected = module.CrossHostAuthStrippingRedirectHandler().redirect_request(
+            request,
+            None,
+            302,
+            "Found",
+            Message(),
+            "https://artifact-storage.example.test/archive.zip?sig=signed",
+        )
+
+        self.assertIsNotNone(redirected)
+        assert redirected is not None
+        self.assertIsNone(redirected.get_header("Authorization"))
+        self.assertIsNone(redirected.get_header("Accept"))
+        self.assertIsNone(redirected.get_header("X-GitHub-Api-Version"))
+
     def test_selects_latest_non_expired_artifact_for_expected_head(self) -> None:
         payload = {"artifacts": [
             {"id": 1, "name": "release-preparation-pr-10", "expired": False, "created_at": "2026-01-01T00:00:00Z", "workflow_run": {"id": 11, "head_sha": "a" * 40}},
