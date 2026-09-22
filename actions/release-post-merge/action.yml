@@ -22,9 +22,10 @@ inputs:
   github-token:
     description: Caller token used for artifact restore and permission lookup.
     required: true
-  app-id:
-    description: GitHub App id used for short-lived mutation tokens.
-    required: true
+  app-slug:
+    description: Public GitHub App slug used to resolve its client id.
+    required: false
+    default: librecode-workflow-automation
   app-private-key:
     description: GitHub App private key used for short-lived mutation tokens.
     required: true
@@ -52,17 +53,13 @@ runs:
     - name: Validate GitHub App credentials
       shell: bash
       env:
-        RELEASE_APP_ID: ${{ inputs.app-id }}
+        RELEASE_APP_SLUG: ${{ inputs.app-slug }}
         RELEASE_APP_PRIVATE_KEY: ${{ inputs.app-private-key }}
       run: |
         set -euo pipefail
 
-        if [[ -z "${RELEASE_APP_ID}" ]]; then
-          echo "::error::GitHub App id is empty. Configure LIBRECODE_WORKFLOW_APP_ID as an Actions variable in the consumer repository or organization."
-          exit 1
-        fi
-        if [[ ! "${RELEASE_APP_ID}" =~ ^[0-9]+$ ]]; then
-          echo "::error::GitHub App id must be numeric."
+        if [[ -z "${RELEASE_APP_SLUG}" ]]; then
+          echo "::error::GitHub App slug is empty."
           exit 1
         fi
         if [[ -z "${RELEASE_APP_PRIVATE_KEY}" ]]; then
@@ -116,11 +113,33 @@ runs:
         echo "owner=${RELEASE_REPOSITORY%%/*}" >> "${GITHUB_OUTPUT}"
         echo "name=${RELEASE_REPOSITORY#*/}" >> "${GITHUB_OUTPUT}"
 
+    - id: app-identity
+      name: Resolve GitHub App client id
+      shell: bash
+      env:
+        RELEASE_APP_SLUG: ${{ inputs.app-slug }}
+        RELEASE_GITHUB_TOKEN: ${{ inputs.github-token }}
+        RELEASE_GITHUB_API_URL: ${{ github.api_url }}
+      run: |
+        set -euo pipefail
+
+        app_json="$(curl --fail --silent --show-error --location \
+          -H "Accept: application/vnd.github+json" \
+          -H "Authorization: Bearer ${RELEASE_GITHUB_TOKEN}" \
+          -H "X-GitHub-Api-Version: 2022-11-28" \
+          "${RELEASE_GITHUB_API_URL}/apps/${RELEASE_APP_SLUG}")"
+        client_id="$(php -r '$d=json_decode(stream_get_contents(STDIN),true,512,JSON_THROW_ON_ERROR); echo $d["client_id"] ?? "";' <<< "${app_json}")"
+        if [[ -z "${client_id}" ]]; then
+          echo "::error::GitHub App metadata did not contain a client_id for ${RELEASE_APP_SLUG}."
+          exit 1
+        fi
+        echo "client-id=${client_id}" >> "${GITHUB_OUTPUT}"
+
     - id: finalization-token
       name: Create finalization token
-      uses: actions/create-github-app-token@67018539274d69449ef7c02e8e71183d1719ab42 # v2.1.4
+      uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
       with:
-        app-id: ${{ inputs.app-id }}
+        client-id: ${{ steps.app-identity.outputs.client-id }}
         private-key: ${{ inputs.app-private-key }}
         owner: ${{ steps.repository.outputs.owner }}
         repositories: ${{ steps.repository.outputs.name }}
@@ -180,9 +199,9 @@ runs:
 
     - id: draft-token
       name: Create release draft token
-      uses: actions/create-github-app-token@67018539274d69449ef7c02e8e71183d1719ab42 # v2.1.4
+      uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
       with:
-        app-id: ${{ inputs.app-id }}
+        client-id: ${{ steps.app-identity.outputs.client-id }}
         private-key: ${{ inputs.app-private-key }}
         owner: ${{ steps.repository.outputs.owner }}
         repositories: ${{ steps.repository.outputs.name }}
@@ -234,7 +253,7 @@ runs:
         } >> "${GITHUB_STEP_SUMMARY}"
 
     - name: Persist finalized release contracts
-      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
       with:
         name: ${{ steps.draft.outputs.state-artifact-name }}
         path: ${{ runner.temp }}/release-post-merge-state
