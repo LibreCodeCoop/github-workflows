@@ -29,12 +29,12 @@ class PortableWorkflowSyncAuthTest(unittest.TestCase):
         self.assertIn('github-app) token="${CONSUMER_APP_TOKEN}"', content)
         self.assertIn('token) token="${CONSUMER_TOKEN}"', content)
 
-    def test_librecode_app_credentials_use_actions_secrets(self) -> None:
+    def test_librecode_app_credentials_use_actions_variable_and_secret(self) -> None:
         content = TEMPLATE.read_text(encoding="utf-8")
 
-        self.assertIn("LIBRECODE_APP_ID: ${{ secrets.LIBRECODE_WORKFLOW_APP_ID }}", content)
-        self.assertIn("app-id: ${{ secrets.LIBRECODE_WORKFLOW_APP_ID }}", content)
-        self.assertNotIn("vars.LIBRECODE_WORKFLOW_APP_ID", content)
+        self.assertIn("LIBRECODE_APP_ID: ${{ vars.LIBRECODE_WORKFLOW_APP_ID }}", content)
+        self.assertIn("app-id: ${{ vars.LIBRECODE_WORKFLOW_APP_ID }}", content)
+        self.assertNotIn("secrets.LIBRECODE_WORKFLOW_APP_ID", content)
 
     def test_generated_pull_request_uses_selected_token(self) -> None:
         content = TEMPLATE.read_text(encoding="utf-8")

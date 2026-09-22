@@ -58,7 +58,7 @@ runs:
         set -euo pipefail
 
         if [[ -z "${RELEASE_APP_ID}" ]]; then
-          echo "::error::GitHub App id is empty. Configure LIBRECODE_WORKFLOW_APP_ID as an Actions secret in the consumer repository or organization."
+          echo "::error::GitHub App id is empty. Configure LIBRECODE_WORKFLOW_APP_ID as an Actions variable in the consumer repository or organization."
           exit 1
         fi
         if [[ ! "${RELEASE_APP_ID}" =~ ^[0-9]+$ ]]; then
