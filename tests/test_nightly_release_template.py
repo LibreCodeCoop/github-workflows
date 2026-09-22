@@ -43,6 +43,15 @@ class NightlyReleaseTemplateTest(unittest.TestCase):
         self.assertIn("permissions:\n  contents: write", content)
         self.assertNotIn("actions: write", content)
 
+    def test_concurrency_only_cancels_runs_for_the_same_branch(self) -> None:
+        content = TEMPLATE.read_text(encoding="utf-8")
+
+        self.assertIn(
+            "group: nightly-release-${{ github.repository }}-${{ github.ref_name }}",
+            content,
+        )
+        self.assertIn("cancel-in-progress: true", content)
+
 
 if __name__ == "__main__":
     unittest.main()
