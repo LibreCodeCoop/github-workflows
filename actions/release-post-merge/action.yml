@@ -200,6 +200,7 @@ runs:
         PREPARED_RELEASE_ID: ${{ steps.finalize.outputs.prepared-release-id }}
       run: |
         set -euo pipefail
+        set +e
         php "${RELEASE_TOOL_PATH}" release:draft \
           --prepared "${RELEASE_STATE_DIR}/prepared-release.json" \
           --milestone "${RELEASE_STATE_DIR}/milestone-transition.json" \
@@ -207,6 +208,12 @@ runs:
           --root . \
           --json \
           > "${RELEASE_STATE_DIR}/release-draft.json"
+        status=$?
+        set -e
+        if [[ "${status}" -ne 0 ]]; then
+          cat "${RELEASE_STATE_DIR}/release-draft.json" || true
+          exit "${status}"
+        fi
 
         draft_id="$(php -r '$d=json_decode(file_get_contents($argv[1]),true,512,JSON_THROW_ON_ERROR); echo $d["id"];' "${RELEASE_STATE_DIR}/release-draft.json")"
         release_id="$(php -r '$d=json_decode(file_get_contents($argv[1]),true,512,JSON_THROW_ON_ERROR); echo $d["github_release"]["id"];' "${RELEASE_STATE_DIR}/release-draft.json")"
