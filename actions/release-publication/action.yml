@@ -110,7 +110,13 @@ runs:
             exit "${exit_code}"
           fi
 
-          echo "Publication not complete yet (attempt ${attempt}/${RELEASE_ATTEMPTS}); retrying after ${RELEASE_DELAY_SECONDS}s."
+          pending="$(php -r '
+            $v=json_decode(file_get_contents($argv[1]), true, 512, JSON_THROW_ON_ERROR);
+            $errors=$v["errors"] ?? [];
+            echo $errors === [] ? "Publication state has not converged yet." : implode(" | ", $errors);
+          ' "${verification_file}")"
+          echo "Publication not complete yet (attempt ${attempt}/${RELEASE_ATTEMPTS}): ${pending}"
+          echo "Retrying after ${RELEASE_DELAY_SECONDS}s."
           sleep "${RELEASE_DELAY_SECONDS}"
         done
 
