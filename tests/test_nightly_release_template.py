@@ -35,6 +35,8 @@ class NightlyReleaseTemplateTest(unittest.TestCase):
         self.assertIn("gh release create nightly", content)
         self.assertIn("nextcloud-libraries/nextcloud-appstore-push-action@", content)
         self.assertIn("nightly: true", content)
+        self.assertIn("printf 'Automated nightly build from `%s`.", content)
+        self.assertIn("printf 'Generated from commit `%s`.", content)
 
     def test_checkout_credentials_are_not_persisted(self) -> None:
         content = TEMPLATE.read_text(encoding="utf-8")
