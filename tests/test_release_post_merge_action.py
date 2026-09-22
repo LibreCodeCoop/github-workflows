@@ -38,6 +38,13 @@ class ReleasePostMergeActionTest(unittest.TestCase):
         self.assertIn("permission-pull-requests: read", content)
         self.assertIn("GITHUB_TOKEN: ${{ inputs.github-token }}", content)
 
+    def test_release_draft_errors_are_exposed(self) -> None:
+        content = ACTION.read_text(encoding="utf-8")
+        draft = content.index("Create or update GitHub Release draft")
+        tail = content[draft:]
+        self.assertIn('status=$?', tail)
+        self.assertIn('cat "${RELEASE_STATE_DIR}/release-draft.json" || true', tail)
+
     def test_contract_chain_is_persisted_for_publication(self) -> None:
         content = ACTION.read_text(encoding="utf-8")
         self.assertIn("release:finalize", content)
