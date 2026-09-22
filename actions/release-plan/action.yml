@@ -20,14 +20,6 @@ inputs:
     description: Release channel (alpha, beta, rc or final).
     required: false
     default: final
-  mode:
-    description: Release mode (normal or security).
-    required: false
-    default: normal
-  safe-public-text:
-    description: Optional explicitly public-safe release text.
-    required: false
-    default: ''
   ignore-open-backport:
     description: Explicitly override matching open backport blockers.
     required: false
@@ -79,8 +71,6 @@ runs:
         RELEASE_REF: ${{ inputs.ref }}
         RELEASE_VERSION: ${{ inputs.version }}
         RELEASE_CHANNEL: ${{ inputs.channel }}
-        RELEASE_MODE: ${{ inputs.mode }}
-        RELEASE_SAFE_PUBLIC_TEXT: ${{ inputs.safe-public-text }}
         RELEASE_IGNORE_OPEN_BACKPORT: ${{ inputs.ignore-open-backport }}
         RELEASE_CREATE_FOLLOW_UP_MILESTONE: ${{ inputs.create-follow-up-milestone }}
         RELEASE_CONFIG_PATH: ${{ inputs.config-path }}
@@ -93,7 +83,6 @@ runs:
           --root .
           --branch "${RELEASE_BRANCH}"
           --channel "${RELEASE_CHANNEL}"
-          --mode "${RELEASE_MODE}"
           --json
         )
 
@@ -102,9 +91,6 @@ runs:
         fi
         if [[ -n "${RELEASE_VERSION}" ]]; then
           args+=(--release-version "${RELEASE_VERSION}")
-        fi
-        if [[ -n "${RELEASE_SAFE_PUBLIC_TEXT}" ]]; then
-          args+=(--safe-public-text "${RELEASE_SAFE_PUBLIC_TEXT}")
         fi
         if [[ "${RELEASE_IGNORE_OPEN_BACKPORT}" == "true" ]]; then
           args+=(--ignore-open-backport)

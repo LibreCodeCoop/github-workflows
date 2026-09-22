@@ -20,14 +20,6 @@ inputs:
     description: Release channel (alpha, beta, rc or final).
     required: false
     default: final
-  mode:
-    description: Release mode (normal or security).
-    required: false
-    default: normal
-  safe-public-text:
-    description: Optional explicitly public-safe release text.
-    required: false
-    default: ''
   ignore-open-backport:
     description: Explicitly override matching open backport blockers.
     required: false
@@ -102,8 +94,6 @@ runs:
         ref: ${{ inputs.ref }}
         version: ${{ inputs.version }}
         channel: ${{ inputs.channel }}
-        mode: ${{ inputs.mode }}
-        safe-public-text: ${{ inputs.safe-public-text }}
         ignore-open-backport: ${{ inputs.ignore-open-backport }}
         create-follow-up-milestone: ${{ inputs.create-follow-up-milestone }}
         config-path: ${{ inputs.config-path }}
