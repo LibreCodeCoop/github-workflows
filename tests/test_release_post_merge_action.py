@@ -29,13 +29,14 @@ class ReleasePostMergeActionTest(unittest.TestCase):
         self.assertLess(milestone, draft)
         self.assertIn("merge_min_permission", content)
 
-    def test_each_mutating_stage_uses_scoped_app_token(self) -> None:
+    def test_mutating_stages_use_scoped_tokens(self) -> None:
         content = ACTION.read_text(encoding="utf-8")
-        self.assertEqual(3, content.count("actions/create-github-app-token@67018539274d69449ef7c02e8e71183d1719ab42"))
+        self.assertEqual(2, content.count("actions/create-github-app-token@67018539274d69449ef7c02e8e71183d1719ab42"))
         self.assertIn("permission-contents: write", content)
         self.assertIn("permission-pull-requests: write", content)
-        self.assertIn("permission-issues: write", content)
+        self.assertNotIn("permission-issues: write", content)
         self.assertIn("permission-pull-requests: read", content)
+        self.assertIn("GITHUB_TOKEN: ${{ inputs.github-token }}", content)
 
     def test_contract_chain_is_persisted_for_publication(self) -> None:
         content = ACTION.read_text(encoding="utf-8")
