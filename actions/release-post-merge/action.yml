@@ -137,6 +137,7 @@ runs:
         RELEASE_STATE_DIR: ${{ runner.temp }}/release-post-merge-state
       run: |
         set -euo pipefail
+        set +e
         php "${RELEASE_TOOL_PATH}" release:finalize \
           --preparation "${RELEASE_STATE_DIR}/release-preparation.json" \
           --config "${RELEASE_CONFIG_PATH}" \
@@ -144,6 +145,12 @@ runs:
           --apply-history-sync \
           --json \
           > "${RELEASE_STATE_DIR}/prepared-release.json"
+        status=$?
+        set -e
+        if [[ "${status}" -ne 0 ]]; then
+          cat "${RELEASE_STATE_DIR}/prepared-release.json" || true
+          exit "${status}"
+        fi
         prepared_id="$(php -r '$p=json_decode(file_get_contents($argv[1]),true,512,JSON_THROW_ON_ERROR); echo $p["id"];' "${RELEASE_STATE_DIR}/prepared-release.json")"
         echo "prepared-release-id=${prepared_id}" >> "${GITHUB_OUTPUT}"
 
