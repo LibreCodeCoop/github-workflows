@@ -58,12 +58,20 @@ class PrepareReleaseTemplateTest(unittest.TestCase):
             content,
         )
 
-    def test_release_mutation_credentials_use_actions_secrets(self) -> None:
+    def test_release_mutation_credentials_use_org_variable_and_secret(self) -> None:
         content = TEMPLATE.read_text(encoding="utf-8")
 
-        self.assertEqual(2, content.count("secrets.LIBRECODE_WORKFLOW_APP_ID"))
+        self.assertEqual(2, content.count("vars.LIBRECODE_WORKFLOW_APP_ID"))
         self.assertEqual(2, content.count("secrets.LIBRECODE_WORKFLOW_APP_PRIVATE_KEY"))
-        self.assertNotIn("vars.LIBRECODE_WORKFLOW_APP_ID", content)
+        self.assertNotIn("secrets.LIBRECODE_WORKFLOW_APP_ID", content)
+
+    def test_release_checkout_fetches_only_selected_branch_history_and_tags(self) -> None:
+        content = TEMPLATE.read_text(encoding="utf-8")
+
+        self.assertIn("fetch-depth: 1", content)
+        self.assertIn('refs/heads/${RELEASE_BRANCH}:refs/remotes/origin/${RELEASE_BRANCH}', content)
+        self.assertIn('refs/tags/*:refs/tags/*', content)
+        self.assertNotIn("fetch-depth: 0", content)
 
     def test_template_keeps_permissions_stage_scoped(self) -> None:
         content = TEMPLATE.read_text(encoding="utf-8")
