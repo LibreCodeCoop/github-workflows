@@ -1,0 +1,48 @@
+# SPDX-FileCopyrightText: 2026 LibreCode coop and contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+name: Publish github-workflows v0.6.18
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/publish-v0.6.18.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      TAG: v0.6.18
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Create release tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          existing_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG}" --jq '.object.sha' 2>/dev/null || true)"
+          if [[ -n "${existing_sha}" ]]; then
+            if [[ "${existing_sha}" != "${GITHUB_SHA}" ]]; then
+              echo "::error::${TAG} already exists at ${existing_sha}, expected ${GITHUB_SHA}"
+              exit 1
+            fi
+          else
+            gh api --method POST "repos/${GITHUB_REPOSITORY}/git/refs"               -f ref="refs/tags/${TAG}"               -f sha="${GITHUB_SHA}" >/dev/null
+          fi
+
+      - name: Publish GitHub release
+        run: |
+          if gh release view "${TAG}" >/dev/null 2>&1; then
+            echo "Release ${TAG} already exists."
+            exit 0
+          fi
+          gh release create "${TAG}"             --verify-tag             --title "${TAG}"             --generate-notes
