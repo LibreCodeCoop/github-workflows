@@ -9,10 +9,22 @@ import io
 import json
 import os
 from pathlib import Path
-from urllib.parse import quote
-from urllib.request import Request, urlopen
+from urllib.parse import quote, urlparse
+from urllib.request import HTTPRedirectHandler, Request, build_opener, urlopen
 from zipfile import ZipFile
 
+
+
+class CrossHostAuthStrippingRedirectHandler(HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        redirected = super().redirect_request(req, fp, code, msg, headers, newurl)
+        if redirected is None:
+            return None
+        if urlparse(req.full_url).netloc != urlparse(newurl).netloc:
+            redirected.remove_header("Authorization")
+            redirected.remove_header("X-GitHub-Api-Version")
+            redirected.remove_header("Accept")
+        return redirected
 
 def select_artifact(payload: object, name: str, expected_head_sha: str | None) -> dict[str, object]:
     if not isinstance(payload, dict) or not isinstance(payload.get("artifacts"), list):
@@ -77,7 +89,8 @@ def request_bytes(url: str, token: str) -> bytes:
         "X-GitHub-Api-Version": "2022-11-28",
         "User-Agent": "LibreCodeCoop/github-workflows",
     })
-    with urlopen(request, timeout=60) as response:
+    opener = build_opener(CrossHostAuthStrippingRedirectHandler())
+    with opener.open(request, timeout=60) as response:
         return response.read()
 
 

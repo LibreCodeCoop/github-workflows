@@ -242,45 +242,9 @@ jobs:
         shell: bash
         env:
           NIGHTLY_BRANCH: ${{ steps.nightly.outputs.branch }}
-        run: |
-          last_tag="$(git tag --list --sort=-version:refname | grep -v '^nightly            echo
-            echo "---"
-            printf 'Generated from commit `%s`.\n' "${GITHUB_SHA:0:7}"
-          } > release-notes.md
-
-      - name: Create or update GitHub release
-        shell: bash
-        env:
           GH_TOKEN: ${{ github.token }}
-          NIGHTLY_BRANCH: ${{ steps.nightly.outputs.branch }}
         run: |
-          title="Nightly ${APP_VERSION} (${NIGHTLY_BRANCH})"
-          notes="${APP_NAME}/release-notes.md"
-          if gh release view nightly --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
-            gh release edit nightly               --repo "${GITHUB_REPOSITORY}"               --title "${title}"               --notes-file "${notes}"               --prerelease
-          else
-            gh release create nightly               --repo "${GITHUB_REPOSITORY}"               --title "${title}"               --notes-file "${notes}"               --prerelease
-          fi
-
-      - name: Attach tarball to GitHub release
-        id: attach-to-release
-        uses: svenstaro/upload-release-action@29e53e917877a24fad85510ded594ab3c9ca12de # v2.11.5
-        with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: ${{ env.APP_NAME }}/build/artifacts/${{ env.APP_NAME }}.tar.gz
-          asset_name: ${{ env.APP_NAME }}-nightly.tar.gz
-          tag: nightly
-          overwrite: true
-
-      - name: Upload nightly to Nextcloud App Store
-        uses: nextcloud-libraries/nextcloud-appstore-push-action@a011fe619bcf6e77ddebc96f9908e1af4071b9c1 # v1.0.3
-        with:
-          app_name: ${{ env.APP_NAME }}
-          appstore_token: ${{ secrets.APPSTORE_TOKEN }}
-          download_url: ${{ steps.attach-to-release.outputs.browser_download_url }}
-          app_private_key: ${{ secrets.APP_PRIVATE_KEY }}
-          nightly: true
- | head -1 || true)"
+          last_tag="$(git tag --list --sort=-version:refname | grep -v '^nightly$' | head -1 || true)"
           if [ -n "${last_tag}" ]; then
             mapfile -t commit_shas < <(git rev-list --reverse "${last_tag}..HEAD")
           else
@@ -304,44 +268,7 @@ jobs:
             ' <<<"${pr_json}")"
 
             if [ -n "${pr_line}" ]; then
-              IFS=            echo
-            echo "---"
-            printf 'Generated from commit `%s`.\n' "${GITHUB_SHA:0:7}"
-          } > release-notes.md
-
-      - name: Create or update GitHub release
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          NIGHTLY_BRANCH: ${{ steps.nightly.outputs.branch }}
-        run: |
-          title="Nightly ${APP_VERSION} (${NIGHTLY_BRANCH})"
-          notes="${APP_NAME}/release-notes.md"
-          if gh release view nightly --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
-            gh release edit nightly               --repo "${GITHUB_REPOSITORY}"               --title "${title}"               --notes-file "${notes}"               --prerelease
-          else
-            gh release create nightly               --repo "${GITHUB_REPOSITORY}"               --title "${title}"               --notes-file "${notes}"               --prerelease
-          fi
-
-      - name: Attach tarball to GitHub release
-        id: attach-to-release
-        uses: svenstaro/upload-release-action@29e53e917877a24fad85510ded594ab3c9ca12de # v2.11.5
-        with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: ${{ env.APP_NAME }}/build/artifacts/${{ env.APP_NAME }}.tar.gz
-          asset_name: ${{ env.APP_NAME }}-nightly.tar.gz
-          tag: nightly
-          overwrite: true
-
-      - name: Upload nightly to Nextcloud App Store
-        uses: nextcloud-libraries/nextcloud-appstore-push-action@a011fe619bcf6e77ddebc96f9908e1af4071b9c1 # v1.0.3
-        with:
-          app_name: ${{ env.APP_NAME }}
-          appstore_token: ${{ secrets.APPSTORE_TOKEN }}
-          download_url: ${{ steps.attach-to-release.outputs.browser_download_url }}
-          app_private_key: ${{ secrets.APP_PRIVATE_KEY }}
-          nightly: true
-\t' read -r pr_number pr_title pr_url <<<"${pr_line}"
+              IFS=$'\t' read -r pr_number pr_title pr_url <<<"${pr_line}"
               if [ -z "${seen_prs[${pr_number}]+x}" ]; then
                 printf -- '- %s ([#%s](%s))\n' "${pr_title}" "${pr_number}" "${pr_url}" >> nightly-changes.md
                 seen_prs["${pr_number}"]=1
