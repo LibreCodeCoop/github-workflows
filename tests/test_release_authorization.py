@@ -33,6 +33,13 @@ class ReleaseAuthorizationTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "unsupported repository permission"):
             module.is_authorized("custom", "read")
 
+    def test_action_summary_uses_printf_for_markdown_code(self) -> None:
+        content = (ROOT / "actions" / "release-authorization" / "action.yml").read_text(encoding="utf-8")
+        self.assertIn("printf -- '- Actor: `%s`", content)
+        self.assertIn("printf -- '- Required: `%s`", content)
+        self.assertIn("printf -- '- Actual: `%s`", content)
+        self.assertNotIn('echo "- Actor: `', content)
+
 
 if __name__ == "__main__":
     unittest.main()

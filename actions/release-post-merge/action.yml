@@ -49,6 +49,27 @@ outputs:
 runs:
   using: composite
   steps:
+    - name: Validate GitHub App credentials
+      shell: bash
+      env:
+        RELEASE_APP_ID: ${{ inputs.app-id }}
+        RELEASE_APP_PRIVATE_KEY: ${{ inputs.app-private-key }}
+      run: |
+        set -euo pipefail
+
+        if [[ -z "${RELEASE_APP_ID}" ]]; then
+          echo "::error::GitHub App id is empty. Configure LIBRECODE_WORKFLOW_APP_ID as an Actions variable in the consumer repository or organization."
+          exit 1
+        fi
+        if [[ ! "${RELEASE_APP_ID}" =~ ^[0-9]+$ ]]; then
+          echo "::error::GitHub App id must be numeric."
+          exit 1
+        fi
+        if [[ -z "${RELEASE_APP_PRIVATE_KEY}" ]]; then
+          echo "::error::GitHub App private key is empty. Configure LIBRECODE_WORKFLOW_APP_PRIVATE_KEY as an Actions secret in the consumer repository or organization."
+          exit 1
+        fi
+
     - id: restore
       name: Restore preparation contracts
       uses: $/actions/release-artifact-restore
