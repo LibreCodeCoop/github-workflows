@@ -26,16 +26,22 @@ class ReleasePrepareActionTest(unittest.TestCase):
         self.assertIn("permission-contents: write", content)
         self.assertIn("permission-pull-requests: write", content)
         self.assertNotIn("permission-workflows: write", content)
+        self.assertIn("client-id: ${{ steps.app-identity.outputs.client-id }}", content)
+        self.assertNotIn("app-id: ${{ inputs.app-id }}", content)
         self.assertIn("release:prepare", content)
+        self.assertIn("Apply release pull request metadata", content)
+        self.assertIn('"assignees"=>[$argv[1]]', content)
+        self.assertIn('"milestone"=>(int)$argv[2]', content)
 
     def test_prepare_validates_mutation_credentials_before_planning(self) -> None:
         content = ACTION.read_text(encoding="utf-8")
         validate = content.index("Validate GitHub App credentials")
         plan = content.index("Build release plan")
         self.assertLess(validate, plan)
-        self.assertIn("LIBRECODE_WORKFLOW_APP_ID", content)
         self.assertIn("LIBRECODE_WORKFLOW_APP_PRIVATE_KEY", content)
-        self.assertIn('[[ ! "${RELEASE_APP_ID}" =~ ^[0-9]+$ ]]', content)
+        self.assertIn("librecode-workflow-automation", content)
+        self.assertIn("/apps/${RELEASE_APP_SLUG}", content)
+        self.assertIn('"client_id"', content)
 
     def test_prepare_persists_plan_and_preparation_by_pr_number(self) -> None:
         content = ACTION.read_text(encoding="utf-8")
