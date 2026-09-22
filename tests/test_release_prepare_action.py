@@ -22,7 +22,7 @@ class ReleasePrepareActionTest(unittest.TestCase):
         self.assertIn("config:validate", content)
         self.assertIn("prepare_min_permission", content)
         self.assertIn("$/actions/release-authorization", content)
-        self.assertIn("actions/create-github-app-token@67018539274d69449ef7c02e8e71183d1719ab42", content)
+        self.assertIn("actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1", content)
         self.assertIn("permission-contents: write", content)
         self.assertIn("permission-pull-requests: write", content)
         self.assertNotIn("permission-workflows: write", content)
@@ -42,7 +42,7 @@ class ReleasePrepareActionTest(unittest.TestCase):
         self.assertIn("release-plan.json", content)
         self.assertIn("release-preparation.json", content)
         self.assertIn('artifact_name="release-preparation-pr-${pr_number}"', content)
-        self.assertIn("actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02", content)
+        self.assertIn("actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a", content)
 
 
 if __name__ == "__main__":
