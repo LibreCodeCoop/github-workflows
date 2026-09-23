@@ -63,12 +63,14 @@ publishing a partially rendered message.
 
 ## Repository configuration
 
-The organization workflow template reads the optional repository variable
-`FIRST_MERGED_PR_MESSAGE`. If it is absent, the installed workflow uses a
-minimal generic message.
+The organization workflow template requires the repository Actions variable
+`FIRST_MERGED_PR_MESSAGE`. The workflow passes that variable directly to the
+action. If it is absent or empty, the action fails instead of publishing a
+fallback message.
 
-A consumer can put its entire Markdown message in that single variable. For
-example:
+Configure the variable under **Settings → Secrets and variables → Actions →
+Variables**. A consumer can put its entire Markdown message in that single
+variable. For example:
 
 ```text
 Thanks {contributor_mention}! Your first pull request to {repository_name} has been merged.
