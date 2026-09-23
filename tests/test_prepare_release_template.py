@@ -21,13 +21,14 @@ class PrepareReleaseTemplateTest(unittest.TestCase):
         content = TEMPLATE.read_text(encoding="utf-8")
 
         self.assertIn("workflow_dispatch:", content)
-        self.assertIn("pull_request:", content)
+        self.assertIn("pull_request_target:", content)
         self.assertIn("release:", content)
         self.assertIn("branch:", content)
         self.assertIn("channel:", content)
         self.assertIn("ignore_open_backport:", content)
         self.assertIn("create_follow_up_milestone:", content)
-        self.assertIn("mode:", content)
+        self.assertNotIn("mode:", content)
+        self.assertNotIn("safe_public_text:", content)
 
     def test_dispatch_help_is_concise_and_explains_risky_inputs(self) -> None:
         content = TEMPLATE.read_text(encoding="utf-8")
@@ -38,30 +39,38 @@ class PrepareReleaseTemplateTest(unittest.TestCase):
         self.assertIn("Branch and version rules are still validated", content)
         self.assertIn("matching backport PR still open", content)
         self.assertIn("move remaining open items", content)
-        self.assertIn("security keeps advisory-private details out of public release text", content)
-        self.assertIn("Never include private advisory details", content)
+        self.assertNotIn("advisory-private", content)
+        self.assertNotIn("private advisory details", content)
+
+    def test_template_uses_explicit_release_run_names(self) -> None:
+        content = TEMPLATE.read_text(encoding="utf-8")
+
+        self.assertIn("run-name:", content)
+        self.assertIn("Prepare release · {0}", content)
+        self.assertIn("Finalize release · PR #{0}", content)
+        self.assertIn("Verify release · {0}", content)
 
     def test_template_delegates_all_release_stages_to_versioned_actions(self) -> None:
         content = TEMPLATE.read_text(encoding="utf-8")
-        sha = "18e6c30c33a5d81b0248a7d865536965eaa93329"
+        sha = "f732578ab87c7bd7d85b60ac1612277149f1153e"
 
         self.assertIn(
-            f"actions/release-prepare@{sha} # v0.6.3",
+            f"actions/release-prepare@{sha} # v0.6.29",
             content,
         )
         self.assertIn(
-            f"actions/release-post-merge@{sha} # v0.6.3",
+            f"actions/release-post-merge@{sha} # v0.6.29",
             content,
         )
         self.assertIn(
-            f"actions/release-publication@{sha} # v0.6.3",
+            f"actions/release-publication@{sha} # v0.6.29",
             content,
         )
 
-    def test_release_mutation_credentials_use_org_variable_and_secret(self) -> None:
+    def test_release_mutation_credentials_use_org_secret(self) -> None:
         content = TEMPLATE.read_text(encoding="utf-8")
 
-        self.assertEqual(2, content.count("vars.LIBRECODE_WORKFLOW_APP_ID"))
+        self.assertNotIn("vars.LIBRECODE_WORKFLOW_APP_ID", content)
         self.assertEqual(2, content.count("secrets.LIBRECODE_WORKFLOW_APP_PRIVATE_KEY"))
         self.assertNotIn("secrets.LIBRECODE_WORKFLOW_APP_ID", content)
 
@@ -79,6 +88,7 @@ class PrepareReleaseTemplateTest(unittest.TestCase):
         self.assertIn("permissions: {}", content)
         self.assertIn("actions: read", content)
         self.assertIn("contents: read", content)
+        self.assertIn("issues: write", content)
         self.assertIn("pull-requests: read", content)
         self.assertNotIn("permissions: write-all", content)
         self.assertNotIn("contents: write", content)
@@ -86,6 +96,7 @@ class PrepareReleaseTemplateTest(unittest.TestCase):
     def test_post_merge_only_accepts_generated_merged_release_prs(self) -> None:
         content = TEMPLATE.read_text(encoding="utf-8")
 
+        self.assertIn("github.event_name == 'pull_request_target'", content)
         self.assertIn("github.event.pull_request.merged == true", content)
         self.assertIn("startsWith(github.event.pull_request.head.ref, 'release-tool/')", content)
         self.assertIn("<!-- release-tool:preparation ", content)
