@@ -142,6 +142,10 @@ runs:
           ' "${plan_file}" "${RELEASE_TOOL_VERSION}"
         } >> "${GITHUB_STEP_SUMMARY}"
 
-        cat "${plan_file}"
+        if [[ "${exit_code}" -eq 3 ]]; then
+          echo "::warning::Release plan is not ready; see the step summary and persisted state for details."
+        else
+          echo "Release plan ready: branch=${RELEASE_BRANCH}, ready=${ready}"
+        fi
 
         exit "${exit_code}"
