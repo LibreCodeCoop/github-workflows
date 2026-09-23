@@ -71,12 +71,12 @@ def build_context(
     }
 
 
-def api_request(
+def build_api_request(
     method: str,
     url: str,
     token: str,
     payload: dict[str, Any] | None = None,
-) -> Any:
+) -> urllib.request.Request:
     data = None if payload is None else json.dumps(payload).encode("utf-8")
     request = urllib.request.Request(
         url,
@@ -84,11 +84,24 @@ def api_request(
         method=method,
         headers={
             "Accept": "application/vnd.github+json",
-            "Authorization": f"Bearer {token}",
             "Content-Type": "application/json",
             "X-GitHub-Api-Version": "2022-11-28",
         },
     )
+    # Keep credentials off redirected requests. urllib forwards normal headers
+    # across redirects, which could otherwise disclose the GitHub token if an
+    # API endpoint ever redirected to a different origin.
+    request.add_unredirected_header("Authorization", f"Bearer {token}")
+    return request
+
+
+def api_request(
+    method: str,
+    url: str,
+    token: str,
+    payload: dict[str, Any] | None = None,
+) -> Any:
+    request = build_api_request(method, url, token, payload)
     try:
         with urllib.request.urlopen(request, timeout=30) as response:
             body = response.read().decode("utf-8")
@@ -126,16 +139,15 @@ def previous_merged_query(repository: str, login: str, closed_at: str) -> str:
     )
 
 
-def list_issue_comments(
+def has_action_marker_comment(
     *,
     api_url: str,
     repository: str,
     pull_request_number: int,
     token: str,
     request: ApiRequest = api_request,
-) -> list[dict[str, Any]]:
+) -> bool:
     owner, repo = repository.split("/", 1)
-    comments: list[dict[str, Any]] = []
     page = 1
     while True:
         batch = request(
@@ -145,9 +157,15 @@ def list_issue_comments(
             token,
             None,
         )
-        comments.extend(batch)
+        for comment in batch:
+            author = comment.get("user") or {}
+            if (
+                author.get("type") == "Bot"
+                and MARKER in str(comment.get("body") or "")
+            ):
+                return True
         if len(batch) < 100:
-            return comments
+            return False
         page += 1
 
 
@@ -188,14 +206,13 @@ def process_pull_request(
 
     result["is-first-merged"] = "true"
 
-    comments = list_issue_comments(
+    if has_action_marker_comment(
         api_url=api_url,
         repository=repository,
         pull_request_number=int(pr["number"]),
         token=token,
         request=request,
-    )
-    if any(MARKER in str(comment.get("body") or "") for comment in comments):
+    ):
         return result
 
     context = build_context(
