@@ -37,7 +37,7 @@ Add `.nextcloud-release.yml` before adding the workflow.
 
 Mutating stages use short-lived installation tokens.
 
-External organizations must create and install their own GitHub App. Do not expect the LibreCode App to be installed in another organization.
+External organizations must create and install their own GitHub App. Do not expect the LibreCode App to be installed in another organization. Follow the [GitHub App setup guide](https://github.com/LibreCodeCoop/release-tool/blob/main/docs/github-app.md) for the exact registration settings, repository permissions, installation scope, private-key generation, and Actions secret configuration.
 
 The consumer passes:
 
