@@ -39,12 +39,35 @@ Mutating stages use short-lived installation tokens.
 
 External organizations must create and install their own GitHub App. Do not expect the LibreCode App to be installed in another organization. Follow the [GitHub App setup guide](https://github.com/LibreCodeCoop/release-tool/blob/main/docs/github-app.md) for the exact registration settings, repository permissions, installation scope, private-key generation, and Actions secret configuration.
 
+The current shared actions require only these GitHub App **repository permissions**:
+
+| Permission | Access |
+| --- | --- |
+| Contents | Read and write |
+| Pull requests | Read and write |
+
+No organization permissions, account/user permissions, webhook subscriptions, Device Flow, or OAuth callback are required.
+
+For a normal organization-internal installation:
+
+1. create the App under **Organization → Settings → Developer settings → GitHub Apps**;
+2. choose **Only on this account**;
+3. disable webhooks and user authorization;
+4. configure only the two repository permissions above;
+5. generate a PEM private key;
+6. choose **Install App** and prefer **Only select repositories**;
+7. add the consumer repository;
+8. store the full PEM in **Repository/Organization → Settings → Secrets and variables → Actions**;
+9. pass the public App slug and that Actions secret to the release actions.
+
+The complete walkthrough, including screenshots/navigation terminology, key rotation, organization-secret scoping, validation and troubleshooting, lives in the [GitHub App setup guide](https://github.com/LibreCodeCoop/release-tool/blob/main/docs/github-app.md).
+
 The consumer passes:
 
-- an App slug;
-- the App private key stored as an Actions secret.
+- the public App slug, for example `example-org-release-automation`;
+- the App private key stored as an Actions **secret**, not a variable.
 
-The actions resolve the public client id from the slug and request only the permissions needed by each stage.
+The actions resolve the public client id from the slug and mint short-lived installation tokens scoped to the current repository and the permissions requested by that stage.
 
 ## Minimal workflow shape
 
