@@ -1,0 +1,64 @@
+# SPDX-FileCopyrightText: 2026 LibreCode coop and contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+name: Release notes from pull requests
+description: Build a Markdown change list from commits, preferring associated merged pull requests.
+
+inputs:
+  github-token:
+    description: Token used to resolve pull requests associated with commits.
+    required: true
+  repository:
+    description: Repository in owner/name form.
+    required: true
+  branch:
+    description: Preferred pull request base branch.
+    required: true
+  working-directory:
+    description: Git working tree used to enumerate commits.
+    required: false
+    default: '.'
+  from-ref:
+    description: Optional lower-bound Git ref. When empty, fallback-limit commits are used.
+    required: false
+    default: ''
+  to-ref:
+    description: Upper-bound Git ref.
+    required: false
+    default: 'HEAD'
+  fallback-limit:
+    description: Number of commits to inspect when from-ref is empty.
+    required: false
+    default: '10'
+
+outputs:
+  changes-file:
+    description: Path to the generated Markdown change list.
+    value: ${{ steps.generate.outputs.changes-file }}
+  change-count:
+    description: Number of rendered change entries.
+    value: ${{ steps.generate.outputs.change-count }}
+  pull-request-count:
+    description: Number of unique pull request entries.
+    value: ${{ steps.generate.outputs.pull-request-count }}
+  commit-fallback-count:
+    description: Number of direct commit fallback entries.
+    value: ${{ steps.generate.outputs.commit-fallback-count }}
+
+runs:
+  using: composite
+  steps:
+    - id: generate
+      name: Generate release note changes
+      shell: bash
+      env:
+        RELEASE_NOTES_GITHUB_TOKEN: ${{ inputs.github-token }}
+        RELEASE_NOTES_REPOSITORY: ${{ inputs.repository }}
+        RELEASE_NOTES_BRANCH: ${{ inputs.branch }}
+        RELEASE_NOTES_WORKING_DIRECTORY: ${{ inputs.working-directory }}
+        RELEASE_NOTES_FROM_REF: ${{ inputs.from-ref }}
+        RELEASE_NOTES_TO_REF: ${{ inputs.to-ref }}
+        RELEASE_NOTES_FALLBACK_LIMIT: ${{ inputs.fallback-limit }}
+      run: |
+        set -euo pipefail
+        python3 "${GITHUB_ACTION_PATH}/generate.py"
