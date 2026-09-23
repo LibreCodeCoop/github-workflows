@@ -1,8 +1,0 @@
-{
-  "name": "First merged contribution",
-  "description": "Thank contributors after their first merged pull request, with optional survey and community links.",
-  "iconName": "octicon heart",
-  "categories": [
-    "Code Review"
-  ]
-}
