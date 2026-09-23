@@ -72,6 +72,45 @@ class NightlyReleaseTemplateTest(unittest.TestCase):
         self.assertNotIn('commits/${sha}/pulls', content)
         self.assertNotIn("unique_by(.number)", content)
 
+    def test_release_note_range_step_is_not_corrupted(self) -> None:
+        content = TEMPLATE.read_text(encoding="utf-8")
+
+        self.assertIn(
+            "grep -v '^nightly
+        content = TEMPLATE.read_text(encoding="utf-8")
+
+        self.assertNotIn("persist-credentials: true", content)
+        self.assertIn("permissions:\n  contents: write\n  pull-requests: read", content)
+        self.assertNotIn("actions: write", content)
+
+    def test_concurrency_only_cancels_runs_for_the_same_branch(self) -> None:
+        content = TEMPLATE.read_text(encoding="utf-8")
+
+        self.assertIn(
+            "group: nightly-release-${{ github.repository }}-${{ github.ref_name }}",
+            content,
+        )
+        self.assertIn("cancel-in-progress: true", content)
+
+
+if __name__ == "__main__":
+    unittest.main()
+ | head -1 || true)",
+            content,
+        )
+        self.assertEqual(
+            content.count("- name: Create or update GitHub release"),
+            1,
+        )
+        self.assertEqual(
+            content.count("- name: Attach tarball to GitHub release"),
+            1,
+        )
+        self.assertEqual(
+            content.count("- name: Upload nightly to Nextcloud App Store"),
+            1,
+        )
+
     def test_checkout_credentials_are_not_persisted(self) -> None:
         content = TEMPLATE.read_text(encoding="utf-8")
 
