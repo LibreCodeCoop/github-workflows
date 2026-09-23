@@ -36,6 +36,18 @@ class PortableWorkflowSyncAuthTest(unittest.TestCase):
         self.assertIn("app-id: ${{ vars.LIBRECODE_WORKFLOW_APP_ID }}", content)
         self.assertNotIn("secrets.LIBRECODE_WORKFLOW_APP_ID", content)
 
+    def test_github_app_token_action_is_current_and_pinned(self) -> None:
+        content = TEMPLATE.read_text(encoding="utf-8")
+        sha = "bcd2ba49218906704ab6c1aa796996da409d3eb1"
+
+        self.assertEqual(
+            content.count(
+                f"actions/create-github-app-token@{sha} # v3.2.0"
+            ),
+            2,
+        )
+        self.assertNotIn("actions/create-github-app-token@67018539274d69449ef7c02e8e71183d1719ab42", content)
+
     def test_generated_pull_request_uses_selected_token(self) -> None:
         content = TEMPLATE.read_text(encoding="utf-8")
 
