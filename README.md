@@ -49,6 +49,16 @@ Consumer repositories install full workflow files. Their local
 - `tests/` — tests for synchronization, rendering and policy behavior.
 - `docs/` — architecture, security and adoption decisions.
 
+## Release automation for Nextcloud apps
+
+The repository also publishes tested release orchestration actions backed by [LibreCodeCoop/release-tool](https://github.com/LibreCodeCoop/release-tool).
+
+Maintainers of Nextcloud apps can use them to replace repeatable release checklists with a reviewable flow:
+
+**prepare plan → generated PR → maintainer merge → release draft → maintainer publish → verification**
+
+See [Adopting the release automation](docs/release-automation.md).
+
 ## Development
 
 Run:
