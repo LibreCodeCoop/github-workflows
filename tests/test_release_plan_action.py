@@ -61,6 +61,12 @@ class ReleasePlanActionTest(unittest.TestCase):
         summary = content.split('echo "## Release plan"', 1)[1]
         self.assertNotIn('public_release_text', summary)
 
+    def test_success_path_does_not_dump_full_release_plan_json(self) -> None:
+        content = ACTION.read_text(encoding="utf-8")
+
+        self.assertEqual(1, content.count('cat "${plan_file}"'))
+        self.assertIn('"ReleasePlan %s: branch=%s version=%s ready=%s\\n"', content)
+
 
 if __name__ == "__main__":
     unittest.main()
