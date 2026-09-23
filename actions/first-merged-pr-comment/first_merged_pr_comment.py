@@ -114,14 +114,14 @@ def write_output(name: str, value: str) -> None:
         handle.write(f"{name}={value}\n")
 
 
-def first_merged_query(repository: str, login: str, closed_at: str) -> str:
+def previous_merged_query(repository: str, login: str, closed_at: str) -> str:
     return " ".join(
         (
             f"repo:{repository}",
             "is:pr",
             "is:merged",
             f"author:{login}",
-            f"closed:<={closed_at}",
+            f"closed:<{closed_at}",
         )
     )
 
@@ -172,15 +172,18 @@ def process_pull_request(
         return result
 
     login = str(pr["user"]["login"])
-    query = first_merged_query(repository, login, str(pr["closed_at"]))
-    encoded_query = urllib.parse.urlencode({"q": query, "per_page": 2})
+    query = previous_merged_query(repository, login, str(pr["closed_at"]))
+    encoded_query = urllib.parse.urlencode({"q": query, "per_page": 1})
     search = request(
         "GET",
         f"{api_url}/search/issues?{encoded_query}",
         token,
         None,
     )
-    if int(search["total_count"]) != 1:
+    # Search only for earlier merged PRs. Do not require the current PR to
+    # have reached the search index yet; the closed event can arrive before
+    # search indexing catches up.
+    if int(search["total_count"]) != 0:
         return result
 
     result["is-first-merged"] = "true"
