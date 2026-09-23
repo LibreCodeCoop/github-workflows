@@ -153,12 +153,32 @@ class FirstMergedPrCommentTest(unittest.TestCase):
         self.assertEqual(result["comment-created"], "false")
         self.assertEqual(api.calls, [])
 
-    def test_existing_marker_makes_retry_idempotent(self) -> None:
-        api = FakeApi(comments=[{"body": f"{module.MARKER}\nAlready sent"}])
+    def test_existing_bot_marker_makes_retry_idempotent(self) -> None:
+        api = FakeApi(
+            comments=[
+                {
+                    "body": f"{module.MARKER}\nAlready sent",
+                    "user": {"login": "github-actions[bot]", "type": "Bot"},
+                }
+            ]
+        )
         result = self.process(api)
         self.assertEqual(result["is-first-merged"], "true")
         self.assertEqual(result["comment-created"], "false")
         self.assertFalse(any(call[0] == "POST" for call in api.calls))
+
+    def test_user_cannot_suppress_comment_by_copying_marker(self) -> None:
+        api = FakeApi(
+            comments=[
+                {
+                    "body": f"{module.MARKER}\nSpoofed",
+                    "user": {"login": "alice", "type": "User"},
+                }
+            ]
+        )
+        result = self.process(api)
+        self.assertEqual(result["is-first-merged"], "true")
+        self.assertEqual(result["comment-created"], "true")
 
     def test_previous_merged_query_excludes_current_pr(self) -> None:
         query = module.previous_merged_query(
@@ -177,6 +197,18 @@ class FirstMergedPrCommentTest(unittest.TestCase):
         result = self.process(api)
         self.assertEqual(result["is-first-merged"], "true")
         self.assertEqual(result["comment-created"], "true")
+
+    def test_authorization_header_is_not_forwarded_on_redirects(self) -> None:
+        request = module.build_api_request(
+            "GET",
+            "https://api.github.com/repos/acme/project",
+            "secret-token",
+        )
+        self.assertNotIn("Authorization", request.headers)
+        self.assertEqual(
+            request.unredirected_hdrs["Authorization"],
+            "Bearer secret-token",
+        )
 
     def test_marker_is_stable_for_idempotency(self) -> None:
         self.assertEqual(
