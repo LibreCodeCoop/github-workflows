@@ -54,13 +54,23 @@ class NightlyReleaseTemplateTest(unittest.TestCase):
 
         self.assertNotIn(".\\\\\\\\n'", content)
 
-    def test_release_notes_prefer_pull_requests_with_commit_fallback(self) -> None:
+    def test_release_notes_use_shared_pull_request_action(self) -> None:
         content = TEMPLATE.read_text(encoding="utf-8")
+        sha = "db491a51227ff4fd76b35b7a24ab7718aab6cbee"
 
-        self.assertIn('commits/${sha}/pulls', content)
-        self.assertIn('unique_by(.number)', content)
-        self.assertIn('([#%s](%s))', content)
-        self.assertIn("git show -s --format='%s'", content)
+        self.assertIn(
+            f"actions/release-notes-from-pull-requests@{sha}",
+            content,
+        )
+        self.assertIn("from-ref: ${{ steps.release-note-range.outputs.from-ref }}", content)
+        self.assertIn("branch: ${{ steps.nightly.outputs.branch }}", content)
+        self.assertIn(
+            "CHANGES_FILE: ${{ steps.release-note-changes.outputs.changes-file }}",
+            content,
+        )
+        self.assertNotIn("declare -A seen_prs", content)
+        self.assertNotIn('commits/${sha}/pulls', content)
+        self.assertNotIn("unique_by(.number)", content)
 
     def test_checkout_credentials_are_not_persisted(self) -> None:
         content = TEMPLATE.read_text(encoding="utf-8")
