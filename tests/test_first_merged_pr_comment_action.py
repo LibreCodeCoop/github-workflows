@@ -6,6 +6,7 @@ from __future__ import annotations
 import importlib.util
 import unittest
 from pathlib import Path
+from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "actions" / "first-merged-pr-comment" / "first_merged_pr_comment.py"
@@ -14,6 +15,29 @@ spec = importlib.util.spec_from_file_location("first_merged_pr_comment", SCRIPT)
 assert spec is not None and spec.loader is not None
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
+
+
+class FakeApi:
+    def __init__(self, *, total_count: int = 1, comments: list[dict[str, Any]] | None = None) -> None:
+        self.total_count = total_count
+        self.comments = comments or []
+        self.calls: list[tuple[str, str, dict[str, Any] | None]] = []
+
+    def __call__(
+        self,
+        method: str,
+        url: str,
+        token: str,
+        payload: dict[str, Any] | None = None,
+    ) -> Any:
+        self.calls.append((method, url, payload))
+        if "/search/issues?" in url:
+            return {"total_count": self.total_count}
+        if "/comments?" in url:
+            return self.comments
+        if method == "POST" and url.endswith("/comments"):
+            return {"id": 123}
+        raise AssertionError(f"unexpected API request: {method} {url}")
 
 
 class FirstMergedPrCommentTest(unittest.TestCase):
@@ -27,6 +51,17 @@ class FirstMergedPrCommentTest(unittest.TestCase):
             "user": {"login": "alice", "type": "User"},
         }
 
+    def process(self, api: FakeApi, *, pr: dict[str, Any] | None = None, template: str = "Thanks {contributor_mention}") -> dict[str, str]:
+        return module.process_pull_request(
+            pr=pr or self.pr,
+            repository="acme/project",
+            token="token",
+            api_url="https://git.example/api/v3",
+            server_url="https://git.example",
+            template=template,
+            request=api,
+        )
+
     def test_build_context_is_generic(self) -> None:
         context = module.build_context(
             pr=self.pr,
@@ -35,6 +70,7 @@ class FirstMergedPrCommentTest(unittest.TestCase):
             api_url="https://git.example/api/v3",
         )
         self.assertEqual(context["server_url"], "https://git.example")
+        self.assertEqual(context["api_url"], "https://git.example/api/v3")
         self.assertEqual(context["repository"], "acme/project")
         self.assertEqual(context["repository_owner"], "acme")
         self.assertEqual(context["repository_name"], "project")
@@ -53,23 +89,23 @@ class FirstMergedPrCommentTest(unittest.TestCase):
             server_url="https://git.example",
             api_url="https://git.example/api/v3",
         )
-        template = (
+        rendered = module.render_template(
             "Hello {contributor_mention}. "
             "Docs: {repository_url}/docs. "
-            "Survey: https://survey.example/form?repo={repository|urlencode}"
-            "&user={contributor_login|urlencode}&pr={pull_request_number}."
+            "Feedback: https://forms.example/respond?repo={repository|urlencode}"
+            "&user={contributor_login|urlencode}&pr={pull_request_number}.",
+            context,
         )
-        rendered = module.render_template(template, context)
         self.assertEqual(
             rendered,
             "Hello @alice. Docs: https://git.example/acme/project/docs. "
-            "Survey: https://survey.example/form?repo=acme%2Fproject"
+            "Feedback: https://forms.example/respond?repo=acme%2Fproject"
             "&user=alice&pr=42.",
         )
 
     def test_render_template_rejects_unknown_placeholder(self) -> None:
-        with self.assertRaisesRegex(module.ActionError, "unknown placeholder: survey_url"):
-            module.render_template("{survey_url}", {"repository": "acme/project"})
+        with self.assertRaisesRegex(module.ActionError, "unknown placeholder: custom_url"):
+            module.render_template("{custom_url}", {"repository": "acme/project"})
 
     def test_render_template_rejects_unknown_filter(self) -> None:
         with self.assertRaisesRegex(module.ActionError, "unknown placeholder filter: shell"):
@@ -78,6 +114,51 @@ class FirstMergedPrCommentTest(unittest.TestCase):
     def test_render_template_rejects_empty_message(self) -> None:
         with self.assertRaisesRegex(module.ActionError, "message template is empty"):
             module.render_template("   ", {})
+
+    def test_first_merged_pr_creates_comment(self) -> None:
+        api = FakeApi()
+        result = self.process(
+            api,
+            template=(
+                "Thanks {contributor_mention}. "
+                "{server_url}/{repository}/issues?author={contributor_login|urlencode}"
+            ),
+        )
+        self.assertEqual(result["is-first-merged"], "true")
+        self.assertEqual(result["comment-created"], "true")
+        post = [call for call in api.calls if call[0] == "POST"]
+        self.assertEqual(len(post), 1)
+        self.assertIn(module.MARKER, post[0][2]["body"])
+        self.assertIn("Thanks @alice.", post[0][2]["body"])
+
+    def test_second_merged_pr_does_not_create_comment(self) -> None:
+        api = FakeApi(total_count=2)
+        result = self.process(api)
+        self.assertEqual(result["is-first-merged"], "false")
+        self.assertEqual(result["comment-created"], "false")
+        self.assertFalse(any(call[0] == "POST" for call in api.calls))
+
+    def test_closed_unmerged_pr_does_not_call_api(self) -> None:
+        api = FakeApi()
+        pr = dict(self.pr, merged=False)
+        result = self.process(api, pr=pr)
+        self.assertEqual(result["is-first-merged"], "false")
+        self.assertEqual(result["comment-created"], "false")
+        self.assertEqual(api.calls, [])
+
+    def test_bot_pr_does_not_call_api(self) -> None:
+        api = FakeApi()
+        pr = dict(self.pr, user={"login": "renovate[bot]", "type": "Bot"})
+        result = self.process(api, pr=pr)
+        self.assertEqual(result["comment-created"], "false")
+        self.assertEqual(api.calls, [])
+
+    def test_existing_marker_makes_retry_idempotent(self) -> None:
+        api = FakeApi(comments=[{"body": f"{module.MARKER}\nAlready sent"}])
+        result = self.process(api)
+        self.assertEqual(result["is-first-merged"], "true")
+        self.assertEqual(result["comment-created"], "false")
+        self.assertFalse(any(call[0] == "POST" for call in api.calls))
 
     def test_first_merged_query_is_historical_for_safe_retries(self) -> None:
         query = module.first_merged_query(
