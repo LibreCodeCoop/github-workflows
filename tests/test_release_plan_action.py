@@ -61,6 +61,13 @@ class ReleasePlanActionTest(unittest.TestCase):
         summary = content.split('echo "## Release plan"', 1)[1]
         self.assertNotIn('public_release_text', summary)
 
+    def test_successful_plan_does_not_dump_full_contract_to_stdout(self) -> None:
+        content = ACTION.read_text(encoding="utf-8")
+
+        self.assertNotIn('        cat "${plan_file}"\n\n        exit "${exit_code}"', content)
+        self.assertIn("Release plan ready: branch=", content)
+        self.assertIn("Release plan is not ready; see the step summary", content)
+
 
 if __name__ == "__main__":
     unittest.main()
