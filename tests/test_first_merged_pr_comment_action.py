@@ -235,7 +235,10 @@ class FirstMergedPrCommentTest(unittest.TestCase):
             workflow,
         )
         self.assertNotIn("env:\n      FIRST_MERGED_PR_MESSAGE", workflow)
-        self.assertNotIn("||", workflow)
+        self.assertNotIn(
+            "Thanks {contributor_mention}! Your first pull request",
+            workflow,
+        )
         self.assertNotIn("survey", workflow.lower())
         self.assertNotIn("community", workflow.lower())
         self.assertNotIn("good first issue", workflow.lower())
