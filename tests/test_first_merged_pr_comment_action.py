@@ -230,8 +230,12 @@ class FirstMergedPrCommentTest(unittest.TestCase):
         workflow = (
             ROOT / "workflow-templates" / "first-merged-pr-comment.yml"
         ).read_text(encoding="utf-8")
-        self.assertIn("vars.FIRST_MERGED_PR_MESSAGE", workflow)
-        self.assertIn("message-template:", workflow)
+        self.assertIn(
+            "message-template: ${{ vars.FIRST_MERGED_PR_MESSAGE }}",
+            workflow,
+        )
+        self.assertNotIn("env:\n      FIRST_MERGED_PR_MESSAGE", workflow)
+        self.assertNotIn("||", workflow)
         self.assertNotIn("survey", workflow.lower())
         self.assertNotIn("community", workflow.lower())
         self.assertNotIn("good first issue", workflow.lower())
