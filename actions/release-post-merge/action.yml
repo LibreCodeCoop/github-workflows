@@ -173,6 +173,25 @@ runs:
         prepared_id="$(php -r '$p=json_decode(file_get_contents($argv[1]),true,512,JSON_THROW_ON_ERROR); echo $p["id"];' "${RELEASE_STATE_DIR}/prepared-release.json")"
         echo "prepared-release-id=${prepared_id}" >> "${GITHUB_OUTPUT}"
 
+        {
+          echo "## History synchronization"
+          echo
+          php -r '
+            $p=json_decode(file_get_contents($argv[1]),true,512,JSON_THROW_ON_ERROR);
+            $items=$p["history_synchronizations"] ?? [$p["history_synchronization"]];
+            foreach ($items as $item) {
+                $branch=$item["target_branch"];
+                $state=$item["state"];
+                $pr=$item["pull_request"] ?? null;
+                if (is_array($pr) && isset($pr["url"], $pr["number"])) {
+                    printf("- `%s`: **%s** — [#%d](%s)\n", $branch, $state, $pr["number"], $pr["url"]);
+                } else {
+                    printf("- `%s`: **%s**\n", $branch, $state);
+                }
+            }
+          ' "${RELEASE_STATE_DIR}/prepared-release.json"
+        } >> "${GITHUB_STEP_SUMMARY}"
+
     - id: milestone
       name: Apply milestone transition
       shell: bash
