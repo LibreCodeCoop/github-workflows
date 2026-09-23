@@ -106,7 +106,18 @@ The provided template:
 - does not download or execute pull-request artifacts;
 - calls the LibreCode composite action at an immutable commit;
 - uses Python's standard library only;
+- keeps the GitHub authorization header off redirected requests;
+- only trusts the idempotency marker when it appears in a bot-authored comment;
 - does not build or run a Docker image;
 - does not install runtime dependencies.
 
 Do not add checkout or execution of pull-request-head content to this workflow.
+
+
+### pull_request_target policy
+
+GitHub treats `pull_request_target` as a privileged event. Repositories or
+organizations that restrict this event must explicitly allow this workflow.
+The workflow is designed for that privileged model: it never checks out or
+executes pull-request-head content and requests only the permission needed to
+create the pull-request comment.
