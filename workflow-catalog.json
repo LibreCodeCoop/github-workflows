@@ -2,7 +2,7 @@
   "templates": [
     "appstore-build-publish",
     "block-unconventional-commits",
-    "first-merged-contribution",
+    "first-merged-pr-comment",
     "lint-eslint",
     "lint-info-xml",
     "lint-php",
@@ -18,4 +18,4 @@
     "reuse",
     "sync-workflow-templates"
   ]
-}
+}\n
