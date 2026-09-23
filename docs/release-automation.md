@@ -69,6 +69,15 @@ The consumer passes:
 
 The actions resolve the public client id from the slug and mint short-lived installation tokens scoped to the current repository and the permissions requested by that stage.
 
+## Install the managed workflows
+
+Install both catalog templates in the consumer repository:
+
+- `prepare-release.yml` — release preparation, post-merge finalization and publication verification;
+- `sync-workflow-templates.yml` — keeps installed managed workflows current through reviewable update pull requests.
+
+Configure `.nextcloud-release.yml` and the release GitHub App before the first run. Workflow synchronization has a separate authentication contract; a GitHub App used by the updater additionally needs **Workflows: write** because it updates `.github/workflows`. See [Cross-repository automation](cross-repository-automation.md).
+
 ## Minimal workflow shape
 
 A consumer normally needs one workflow with three events:
