@@ -2,6 +2,7 @@
   "templates": [
     "appstore-build-publish",
     "block-unconventional-commits",
+    "first-merged-contribution",
     "lint-eslint",
     "lint-info-xml",
     "lint-php",
