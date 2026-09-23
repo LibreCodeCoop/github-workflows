@@ -18,7 +18,7 @@ spec.loader.exec_module(module)
 
 
 class FakeApi:
-    def __init__(self, *, total_count: int = 1, comments: list[dict[str, Any]] | None = None) -> None:
+    def __init__(self, *, total_count: int = 0, comments: list[dict[str, Any]] | None = None) -> None:
         self.total_count = total_count
         self.comments = comments or []
         self.calls: list[tuple[str, str, dict[str, Any] | None]] = []
@@ -132,7 +132,7 @@ class FirstMergedPrCommentTest(unittest.TestCase):
         self.assertIn("Thanks @alice.", post[0][2]["body"])
 
     def test_second_merged_pr_does_not_create_comment(self) -> None:
-        api = FakeApi(total_count=2)
+        api = FakeApi(total_count=1)
         result = self.process(api)
         self.assertEqual(result["is-first-merged"], "false")
         self.assertEqual(result["comment-created"], "false")
@@ -160,8 +160,8 @@ class FirstMergedPrCommentTest(unittest.TestCase):
         self.assertEqual(result["comment-created"], "false")
         self.assertFalse(any(call[0] == "POST" for call in api.calls))
 
-    def test_first_merged_query_is_historical_for_safe_retries(self) -> None:
-        query = module.first_merged_query(
+    def test_previous_merged_query_excludes_current_pr(self) -> None:
+        query = module.previous_merged_query(
             "acme/project",
             "alice",
             "2026-09-23T12:00:00Z",
@@ -169,8 +169,14 @@ class FirstMergedPrCommentTest(unittest.TestCase):
         self.assertEqual(
             query,
             "repo:acme/project is:pr is:merged author:alice "
-            "closed:<=2026-09-23T12:00:00Z",
+            "closed:<2026-09-23T12:00:00Z",
         )
+
+    def test_first_merge_does_not_depend_on_current_pr_search_indexing(self) -> None:
+        api = FakeApi(total_count=0)
+        result = self.process(api)
+        self.assertEqual(result["is-first-merged"], "true")
+        self.assertEqual(result["comment-created"], "true")
 
     def test_marker_is_stable_for_idempotency(self) -> None:
         self.assertEqual(
