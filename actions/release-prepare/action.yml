@@ -164,6 +164,8 @@ runs:
         RELEASE_TOOL_PATH: ${{ steps.plan.outputs.tool-path }}
         RELEASE_PLAN_PATH: ${{ steps.plan.outputs.plan-path }}
         RELEASE_CONFIG_PATH: ${{ inputs.config-path }}
+        RELEASE_REQUESTED_BY: ${{ inputs.actor }}
+        RELEASE_TOOL_VERSION: ${{ steps.plan.outputs.tool-version }}
       run: |
         set -euo pipefail
         state_dir="${RUNNER_TEMP}/release-preparation-state"
@@ -189,10 +191,22 @@ runs:
         echo "artifact-name=${artifact_name}" >> "${GITHUB_OUTPUT}"
         echo "state-dir=${state_dir}" >> "${GITHUB_OUTPUT}"
 
+        plan_id="$(php -r '$p=json_decode(file_get_contents($argv[1]),true,512,JSON_THROW_ON_ERROR); echo $p["id"];' "${RELEASE_PLAN_PATH}")"
+        release_branch="$(php -r '$p=json_decode(file_get_contents($argv[1]),true,512,JSON_THROW_ON_ERROR); echo $p["branch"];' "${RELEASE_PLAN_PATH}")"
+        planning_base="$(php -r '$p=json_decode(file_get_contents($argv[1]),true,512,JSON_THROW_ON_ERROR); echo $p["planning_base_sha"];' "${RELEASE_PLAN_PATH}")"
+        release_version="$(php -r '$p=json_decode(file_get_contents($argv[1]),true,512,JSON_THROW_ON_ERROR); echo $p["proposed_version"];' "${RELEASE_PLAN_PATH}")"
+        release_channel="$(php -r '$p=json_decode(file_get_contents($argv[1]),true,512,JSON_THROW_ON_ERROR); echo $p["channel"];' "${RELEASE_PLAN_PATH}")"
+
         {
           echo "## Release preparation"
           echo
-          printf -- '- Preparation: `%s`\n' "${preparation_id}"
+          printf -- '- Requested by: `%s`\n' "${RELEASE_REQUESTED_BY}"
+          printf -- '- Branch: `%s`\n' "${release_branch}"
+          printf -- '- Planning base: `%s`\n' "${planning_base}"
+          printf -- '- Version: `%s` (%s)\n' "${release_version}" "${release_channel}"
+          printf -- '- release-tool: `%s`\n' "${RELEASE_TOOL_VERSION}"
+          printf -- '- ReleasePlan: `%s`\n' "${plan_id}"
+          printf -- '- ReleasePreparation: `%s`\n' "${preparation_id}"
           echo "- Pull request: ${pr_url}"
           printf -- '- State artifact: `%s`\n' "${artifact_name}"
         } >> "${GITHUB_STEP_SUMMARY}"
