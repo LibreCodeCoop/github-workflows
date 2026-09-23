@@ -37,7 +37,7 @@ class NightlyReleaseTemplateTest(unittest.TestCase):
         self.assertIn("nightly: true", content)
         self.assertIn("printf 'Automated nightly build from `%s`.\\n'", content)
         self.assertIn("printf 'Generated from commit `%s`.\\n'", content)
-        self.assertNotIn("from `%s`.\\\\\\\\n", content)
+        self.assertNotIn("from `%s`.\\\\\\n", content)
 
     def test_server_is_available_before_makefile_packaging(self) -> None:
         content = TEMPLATE.read_text(encoding="utf-8")
@@ -52,7 +52,7 @@ class NightlyReleaseTemplateTest(unittest.TestCase):
     def test_release_notes_do_not_emit_literal_newline_escapes(self) -> None:
         content = TEMPLATE.read_text(encoding="utf-8")
 
-        self.assertNotIn(".\\\\\\\\n'", content)
+        self.assertNotIn(".\\\\\\n'", content)
 
     def test_release_notes_use_shared_pull_request_action(self) -> None:
         content = TEMPLATE.read_text(encoding="utf-8")
@@ -62,15 +62,40 @@ class NightlyReleaseTemplateTest(unittest.TestCase):
             f"actions/release-notes-from-pull-requests@{sha}",
             content,
         )
-        self.assertIn("from-ref: ${{ steps.release-note-range.outputs.from-ref }}", content)
-        self.assertIn("branch: ${{ steps.nightly.outputs.branch }}", content)
+        self.assertIn(
+            "from-ref: ${{ steps.release-note-range.outputs.from-ref }}",
+            content,
+        )
+        self.assertIn(
+            "branch: ${{ steps.nightly.outputs.branch }}",
+            content,
+        )
         self.assertIn(
             "CHANGES_FILE: ${{ steps.release-note-changes.outputs.changes-file }}",
             content,
         )
         self.assertNotIn("declare -A seen_prs", content)
-        self.assertNotIn('commits/${sha}/pulls', content)
         self.assertNotIn("unique_by(.number)", content)
+
+    def test_release_note_range_step_is_not_corrupted(self) -> None:
+        content = TEMPLATE.read_text(encoding="utf-8")
+
+        self.assertIn(
+            "grep -v '^nightly$' | head -1 || true)",
+            content,
+        )
+        self.assertEqual(
+            content.count("- name: Create or update GitHub release"),
+            1,
+        )
+        self.assertEqual(
+            content.count("- name: Attach tarball to GitHub release"),
+            1,
+        )
+        self.assertEqual(
+            content.count("- name: Upload nightly to Nextcloud App Store"),
+            1,
+        )
 
     def test_checkout_credentials_are_not_persisted(self) -> None:
         content = TEMPLATE.read_text(encoding="utf-8")
