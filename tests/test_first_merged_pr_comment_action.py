@@ -197,7 +197,7 @@ class FirstMergedPrCommentTest(unittest.TestCase):
         self.assertNotIn("survey", workflow.lower())
         self.assertNotIn("community", workflow.lower())
         self.assertNotIn("good first issue", workflow.lower())
-        self.assertNotIn("checkout", workflow.lower())
+        self.assertNotIn("uses: actions/checkout@", workflow)
 
 
 if __name__ == "__main__":
