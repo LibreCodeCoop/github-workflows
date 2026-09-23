@@ -164,6 +164,8 @@ runs:
         RELEASE_TOOL_PATH: ${{ steps.plan.outputs.tool-path }}
         RELEASE_PLAN_PATH: ${{ steps.plan.outputs.plan-path }}
         RELEASE_CONFIG_PATH: ${{ inputs.config-path }}
+        RELEASE_REQUESTED_BY: ${{ inputs.actor }}
+        RELEASE_TOOL_VERSION: ${{ steps.plan.outputs.tool-version }}
       run: |
         set -euo pipefail
         state_dir="${RUNNER_TEMP}/release-preparation-state"
@@ -198,11 +200,11 @@ runs:
         {
           echo "## Release preparation"
           echo
-          printf -- '- Requested by: `%s`\n' "${{ inputs.actor }}"
+          printf -- '- Requested by: `%s`\n' "${RELEASE_REQUESTED_BY}"
           printf -- '- Branch: `%s`\n' "${release_branch}"
           printf -- '- Planning base: `%s`\n' "${planning_base}"
           printf -- '- Version: `%s` (%s)\n' "${release_version}" "${release_channel}"
-          printf -- '- release-tool: `%s`\n' "${{ steps.plan.outputs.tool-version }}"
+          printf -- '- release-tool: `%s`\n' "${RELEASE_TOOL_VERSION}"
           printf -- '- ReleasePlan: `%s`\n' "${plan_id}"
           printf -- '- ReleasePreparation: `%s`\n' "${preparation_id}"
           echo "- Pull request: ${pr_url}"
