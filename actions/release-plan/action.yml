@@ -142,6 +142,15 @@ runs:
           ' "${plan_file}" "${RELEASE_TOOL_VERSION}"
         } >> "${GITHUB_STEP_SUMMARY}"
 
-        cat "${plan_file}"
+        php -r '
+          $plan = json_decode(file_get_contents($argv[1]), true, 512, JSON_THROW_ON_ERROR);
+          printf(
+            "ReleasePlan %s: branch=%s version=%s ready=%s\n",
+            $plan["id"],
+            $plan["branch"],
+            $plan["proposed_version"],
+            !empty($plan["ready"]) ? "yes" : "no",
+          );
+        ' "${plan_file}"
 
         exit "${exit_code}"
