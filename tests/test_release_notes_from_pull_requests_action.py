@@ -124,14 +124,14 @@ class ReleaseNotesFromPullRequestsTest(unittest.TestCase):
         self.assertEqual(prs, 0)
         self.assertEqual(fallbacks, 1)
 
-    def test_titles_are_normalized_before_markdown_rendering(self) -> None:
+    def test_titles_are_sanitized_before_markdown_rendering(self) -> None:
         sha = "c" * 40
         api = FakeApi(
             {
                 sha: [
                     {
                         "number": 77,
-                        "title": "First line\nSecond line",
+                        "title": "First *line*\n@maintainers [link](https://evil.example)",
                         "merged_at": "2026-09-01T00:00:00Z",
                         "base": {"ref": "stable35"},
                     }
@@ -150,7 +150,31 @@ class ReleaseNotesFromPullRequestsTest(unittest.TestCase):
         )
         self.assertEqual(
             lines,
-            ["- First line Second line ([#77](https://git.example/acme/app/pull/77))"],
+            [
+                "- First \\*line\\* @\u200bmaintainers "
+                "\\[link\\](https://evil.example) "
+                "([#77](https://git.example/acme/app/pull/77))"
+            ],
+        )
+
+    def test_direct_commit_subject_is_sanitized(self) -> None:
+        sha = "e" * 40
+        api = FakeApi({})
+        lines, _, _ = module.generate_changes(
+            commits=[sha],
+            repository="acme/app",
+            branch="stable35",
+            server_url="https://github.com",
+            api_url="https://api.github.com",
+            token="token",
+            subject_lookup=lambda value: module.sanitize_markdown_text(
+                "Fix *all* @maintainers"
+            ),
+            request=api,
+        )
+        self.assertEqual(
+            lines,
+            ["- Fix \\*all\\* @\u200bmaintainers (`eeeeeee`)"],
         )
 
     def test_api_url_supports_github_enterprise(self) -> None:
