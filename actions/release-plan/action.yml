@@ -37,9 +37,6 @@ inputs:
     required: true
 
 outputs:
-  plan:
-    description: ReleasePlan v1 JSON.
-    value: ${{ steps.plan.outputs.plan }}
   ready:
     description: Whether the plan is ready for the next stage.
     value: ${{ steps.plan.outputs.ready }}
@@ -115,11 +112,7 @@ runs:
           echo !empty($plan["ready"]) ? "true" : "false";
         ' "${plan_file}")"
 
-        delimiter="release-plan-${RANDOM}-${RANDOM}"
         {
-          echo "plan<<${delimiter}"
-          cat "${plan_file}"
-          echo "${delimiter}"
           echo "ready=${ready}"
           echo "plan-path=${plan_file}"
         } >> "${GITHUB_OUTPUT}"

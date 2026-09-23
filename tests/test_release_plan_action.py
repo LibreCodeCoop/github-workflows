@@ -31,11 +31,14 @@ class ReleasePlanActionTest(unittest.TestCase):
             "ignore-open-backport:",
             "create-follow-up-milestone:",
             "config-path:",
-            "plan:",
             "ready:",
             "tool-version:",
+            "tool-path:",
+            "plan-path:",
         ):
             self.assertIn(expected, content)
+
+        self.assertNotIn("description: ReleasePlan v1 JSON.", content)
 
         for transitional in (
             "mode:",
