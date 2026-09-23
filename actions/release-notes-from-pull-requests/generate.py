@@ -20,8 +20,13 @@ class ActionError(RuntimeError):
     pass
 
 
-def normalize_markdown_text(value: str) -> str:
-    return " ".join(value.replace("\r", "\n").splitlines()).strip()
+def sanitize_markdown_text(value: str) -> str:
+    normalized = " ".join(value.replace("\r", "\n").splitlines()).strip()
+    for character in ("\\", "`", "*", "_", "{", "}", "[", "]", "<", ">"):
+        normalized = normalized.replace(character, f"\\{character}")
+    # PR titles and commit subjects can be contributor-controlled. Keep their
+    # visible text while preventing them from creating GitHub @mentions.
+    return normalized.replace("@", "@\u200b")
 
 
 def choose_pull_request(
@@ -110,7 +115,7 @@ def commit_subject(working_directory: Path, sha: str) -> str:
     lines = git_lines(working_directory, "show", "-s", "--format=%s", sha)
     if not lines:
         raise ActionError(f"cannot resolve subject for commit {sha}")
-    return normalize_markdown_text(lines[0])
+    return sanitize_markdown_text(lines[0])
 
 
 def generate_changes(
@@ -149,7 +154,7 @@ def generate_changes(
             if number in seen_pull_requests:
                 continue
             seen_pull_requests.add(number)
-            title = normalize_markdown_text(str(pull_request.get("title") or ""))
+            title = sanitize_markdown_text(str(pull_request.get("title") or ""))
             if not title:
                 title = f"Pull request #{number}"
             url = f"{clean_server_url}/{repository}/pull/{number}"
