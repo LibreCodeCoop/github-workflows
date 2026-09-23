@@ -5,154 +5,68 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 
 # Cross-repository automation
 
-LibreCode cross-repository workflow automation is authenticated through the
-**LibreCode Workflow Automation** GitHub App.
+LibreCode distributes managed workflow templates through `LibreCodeCoop/.github`. Consumer repositories opt in by installing `sync-workflow-templates.yml`; there is no central consumer registry.
 
-## Installation
+## Flow
 
-The App is installed on the `LibreCodeCoop` organization with access to all
-repositories.
+```text
+github-workflows
+    -> LibreCodeCoop/.github catalog
+    -> consumer sync-workflow-templates.yml
+    -> actions/sync-workflows
+    -> reviewable consumer pull request
+```
 
-The installation-level access is intentionally broad so newly created LibreCode
-repositories do not require a manual App reconfiguration before they can be
-onboarded.
+The updater manages workflows already installed in the consumer repository. It records catalog state in `.github/actions-lock.txt`, reapplies an optional `<workflow>.patch`, and refuses to overwrite unexplained local divergence.
 
-Actual automation remains opt-in:
+## Authentication
 
-- catalog publication targets only `LibreCodeCoop/.github`;
-- consumer synchronization targets only repositories declared in
-  `consumers.json`;
-- catalog entries are limited by `workflow-catalog.json`.
+The installed updater selects authentication with the repository variable `WORKFLOW_SYNC_AUTH_MODE`:
 
-## GitHub App permissions
+- `librecode-app` — LibreCode-managed repositories; uses `LIBRECODE_WORKFLOW_APP_ID` and `LIBRECODE_WORKFLOW_APP_PRIVATE_KEY`.
+- `github-app` — independent consumers; uses `WORKFLOW_SYNC_APP_ID` and `WORKFLOW_SYNC_APP_PRIVATE_KEY`.
+- `token` — uses `WORKFLOW_SYNC_TOKEN`.
+- `github-token` — uses the workflow `GITHUB_TOKEN`.
 
-Repository permissions:
+For independent projects, prefer a consumer-owned GitHub App. The updater needs repository permissions **Contents: write**, **Pull requests: write**, and **Workflows: write** because it updates files under `.github/workflows`.
 
-- Contents: read/write;
-- Pull requests: read/write;
-- Workflows: read/write;
-- Metadata: read.
+The `github-token` mode is explicit because events created with `GITHUB_TOKEN` may not trigger the repository's normal pull-request automation.
 
-No organization administration, members, secrets or repository administration
-permissions are required.
+## Install and update workflows
 
-## Repository configuration
+1. Install the desired templates from the organization catalog.
+2. Install `sync-workflow-templates.yml`.
+3. Configure one authentication mode.
+4. Run **Update workflows** manually once.
+5. Review and merge the generated update PR.
+6. Confirm a subsequent run is a no-op.
 
-`LibreCodeCoop/github-workflows` stores:
+After installation, the updater runs weekly and can also be dispatched manually. It updates the installed workflows, including itself, through normal reviewable pull requests.
 
-- Actions variable `LIBRECODE_WORKFLOW_APP_ID`;
-- Actions secret `LIBRECODE_WORKFLOW_APP_PRIVATE_KEY`.
+Consumer-specific changes belong in `.github/workflows/<workflow>.patch`. Do not edit a managed workflow directly when the difference should survive synchronization.
 
-Consumer repositories that execute write-capable release orchestration also need
-those values available in their own Actions context, either directly at
-repository level or inherited from an organization configuration that includes
-the repository:
+## Publishing templates
 
-- Actions variable `LIBRECODE_WORKFLOW_APP_ID`;
-- Actions secret `LIBRECODE_WORKFLOW_APP_PRIVATE_KEY`.
+`github-workflows` is the source of truth. `LibreCodeCoop/.github` is the distribution catalog, not an editing source.
 
-The GitHub App installation must also include the consumer repository. A
-credential configured only in `LibreCodeCoop/github-workflows` is not visible
-to a workflow running in another repository.
+Only templates listed in `workflow-catalog.json` are published. Generated or experimental workflows should not be added to the catalog until they are ready for consumers.
 
-The private key must never be committed to a repository.
+## LibreCode catalog credentials
 
-## Token model
+Catalog publication uses the **LibreCode Workflow Automation** GitHub App. Its credentials are stored in `LibreCodeCoop/github-workflows`:
 
-Workflows do not store a long-lived installation token.
+- variable `LIBRECODE_WORKFLOW_APP_ID`;
+- secret `LIBRECODE_WORKFLOW_APP_PRIVATE_KEY`.
 
-Each write-capable job uses `actions/create-github-app-token`, pinned to a
-full commit SHA, to create a short-lived installation token.
+Write-capable jobs mint short-lived installation tokens scoped to the destination repository. The private key must never be committed.
 
-Although the App is installed across the organization, each generated token is
-further restricted to the exact destination repository:
+For LibreCode-managed workflow synchronization the same App must be installed on the consumer repository and its credentials must be available to that repository's Actions context.
 
-- catalog publisher: `.github`;
-- consumer sync: the current consumer repository from the matrix.
+## Key rotation
 
-The token also requests only the permissions needed for the operation.
+1. Generate a new private key in the GitHub App settings.
+2. Replace the Actions secret.
+3. Validate catalog publication and one consumer synchronization.
+4. Delete the old key.
 
-## Onboarding a repository
-
-A new repository does not require reinstalling or reconfiguring the App.
-
-To opt a repository into managed workflow synchronization:
-
-1. validate the desired workflows in that repository;
-2. add the repository and workflow names to `consumers.json`;
-3. merge the reviewed change;
-4. review the automatically created adoption PR;
-5. merge the lock file;
-6. confirm a subsequent synchronization is a no-op.
-
-## Publishing a template
-
-A generated file under `workflow-templates/` is not automatically public.
-
-Add the template name to `workflow-catalog.json` only after the workflow has
-completed its security and consumer validation.
-
-This prevents release, credential-sensitive or experimental workflows from
-appearing in **Actions -> New workflow** prematurely.
-
-## Private-key rotation
-
-Rotate the App private key when:
-
-- compromise is suspected;
-- an administrator with access to the key leaves the responsible team;
-- organizational security policy requires rotation.
-
-Rotation procedure:
-
-1. generate a new private key in the GitHub App settings;
-2. replace `LIBRECODE_WORKFLOW_APP_PRIVATE_KEY` in the repository Actions
-   secrets;
-3. run/observe catalog publication and consumer synchronization successfully;
-4. delete the old private key from the GitHub App settings.
-
-Do not delete the old key before the new key has been validated.
-
-## Validation
-
-The initial production validation confirmed:
-
-- GitHub App configuration can be read by Actions;
-- scoped installation tokens can be created;
-- the catalog repository can be checked out and updated;
-- a catalog no-op does not leave an update PR open;
-- `LibreCodeCoop/extract` can be checked out and updated;
-- managed workflows can be adopted into the lock file;
-- a subsequent synchronization with current hashes creates no PR.
-
-
-## Portable consumer authentication
-
-The installed workflow updater does not infer authentication from the consumer's
-organization name. Consumers select an explicit repository variable:
-
-\`WORKFLOW_SYNC_AUTH_MODE\`
-
-Supported values:
-
-- \`librecode-app\` — default for existing LibreCode-managed repositories. Uses
-  \`LIBRECODE_WORKFLOW_APP_ID\` and \`LIBRECODE_WORKFLOW_APP_PRIVATE_KEY\`.
-- \`github-app\` — uses a consumer-owned GitHub App configured through
-  \`WORKFLOW_SYNC_APP_ID\` and \`WORKFLOW_SYNC_APP_PRIVATE_KEY\`.
-- \`token\` — uses a consumer-owned repository-scoped credential stored as
-  \`WORKFLOW_SYNC_TOKEN\`.
-- \`github-token\` — uses the workflow's built-in \`GITHUB_TOKEN\`.
-
-A consumer-owned GitHub App is preferred for independent projects because it
-keeps credentials under the consumer's control while still allowing generated
-pull requests to trigger normal repository automation.
-
-The \`github-token\` mode is intentionally explicit. GitHub suppresses workflow
-runs caused by most events created with the repository \`GITHUB_TOKEN\`, which
-means a pull request created through that mode may not trigger the consumer's
-normal pull-request CI. Use it only when that limitation is acceptable or when
-another mechanism explicitly triggers validation.
-
-For GitHub App credentials, request only the repository permissions needed by
-the updater: Contents write, Pull requests write and Workflows write. Do not
-install or share the LibreCode GitHub App/private key with external consumers.
+Do not delete the old key before validating the replacement.
