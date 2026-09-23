@@ -188,6 +188,17 @@ class FirstMergedPrCommentTest(unittest.TestCase):
         self.assertNotIn("community", action.lower())
         self.assertNotIn("good first issue", action.lower())
 
+    def test_workflow_template_only_exposes_message_configuration(self) -> None:
+        workflow = (
+            ROOT / "workflow-templates" / "first-merged-pr-comment.yml"
+        ).read_text(encoding="utf-8")
+        self.assertIn("vars.FIRST_MERGED_PR_MESSAGE", workflow)
+        self.assertIn("message-template:", workflow)
+        self.assertNotIn("survey", workflow.lower())
+        self.assertNotIn("community", workflow.lower())
+        self.assertNotIn("good first issue", workflow.lower())
+        self.assertNotIn("checkout", workflow.lower())
+
 
 if __name__ == "__main__":
     unittest.main()
