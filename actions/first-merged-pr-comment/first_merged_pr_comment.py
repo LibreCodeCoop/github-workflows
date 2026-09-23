@@ -11,11 +11,12 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 MARKER = "<!-- librecode:first-merged-pr-comment -->"
 PLACEHOLDER = re.compile(r"\{([a-z][a-z0-9_]*)(?:\|([a-z][a-z0-9_]*))?\}")
 ALLOWED_FILTERS = {"urlencode"}
+ApiRequest = Callable[[str, str, str, dict[str, Any] | None], Any]
 
 
 class ActionError(RuntimeError):
@@ -35,9 +36,7 @@ def render_template(template: str, context: dict[str, str]) -> str:
             return value
         if filter_name not in ALLOWED_FILTERS:
             raise ActionError(f"unknown placeholder filter: {filter_name}")
-        if filter_name == "urlencode":
-            return urllib.parse.quote(value, safe="")
-        raise AssertionError(filter_name)
+        return urllib.parse.quote(value, safe="")
 
     return PLACEHOLDER.sub(replace, template)
 
@@ -52,21 +51,22 @@ def build_context(
     owner, repository_name = repository.split("/", 1)
     login = str(pr["user"]["login"])
     number = str(pr["number"])
+    clean_server_url = server_url.rstrip("/")
     return {
-        "server_url": server_url.rstrip("/"),
+        "server_url": clean_server_url,
         "api_url": api_url.rstrip("/"),
         "repository": repository,
         "repository_owner": owner,
         "repository_name": repository_name,
-        "repository_url": f"{server_url.rstrip('/')}/{repository}",
+        "repository_url": f"{clean_server_url}/{repository}",
         "pull_request_number": number,
         "pull_request_url": str(
             pr.get("html_url")
-            or f"{server_url.rstrip('/')}/{repository}/pull/{number}"
+            or f"{clean_server_url}/{repository}/pull/{number}"
         ),
         "contributor_login": login,
         "contributor_mention": f"@{login}",
-        "contributor_url": f"{server_url.rstrip('/')}/{login}",
+        "contributor_url": f"{clean_server_url}/{login}",
         "merge_commit_sha": str(pr.get("merge_commit_sha") or ""),
     }
 
@@ -126,6 +126,94 @@ def first_merged_query(repository: str, login: str, closed_at: str) -> str:
     )
 
 
+def list_issue_comments(
+    *,
+    api_url: str,
+    repository: str,
+    pull_request_number: int,
+    token: str,
+    request: ApiRequest = api_request,
+) -> list[dict[str, Any]]:
+    owner, repo = repository.split("/", 1)
+    comments: list[dict[str, Any]] = []
+    page = 1
+    while True:
+        batch = request(
+            "GET",
+            f"{api_url}/repos/{owner}/{repo}/issues/{pull_request_number}/comments"
+            f"?per_page=100&page={page}",
+            token,
+            None,
+        )
+        comments.extend(batch)
+        if len(batch) < 100:
+            return comments
+        page += 1
+
+
+def process_pull_request(
+    *,
+    pr: dict[str, Any],
+    repository: str,
+    token: str,
+    api_url: str,
+    server_url: str,
+    template: str,
+    request: ApiRequest = api_request,
+) -> dict[str, str]:
+    result = {
+        "is-first-merged": "false",
+        "comment-created": "false",
+        "contributor-login": str(pr["user"]["login"]),
+        "pull-request-number": str(pr["number"]),
+    }
+
+    if not pr.get("merged") or pr.get("user", {}).get("type") == "Bot":
+        return result
+
+    login = str(pr["user"]["login"])
+    query = first_merged_query(repository, login, str(pr["closed_at"]))
+    encoded_query = urllib.parse.urlencode({"q": query, "per_page": 2})
+    search = request(
+        "GET",
+        f"{api_url}/search/issues?{encoded_query}",
+        token,
+        None,
+    )
+    if int(search["total_count"]) != 1:
+        return result
+
+    result["is-first-merged"] = "true"
+
+    comments = list_issue_comments(
+        api_url=api_url,
+        repository=repository,
+        pull_request_number=int(pr["number"]),
+        token=token,
+        request=request,
+    )
+    if any(MARKER in str(comment.get("body") or "") for comment in comments):
+        return result
+
+    context = build_context(
+        pr=pr,
+        repository=repository,
+        server_url=server_url,
+        api_url=api_url,
+    )
+    message = render_template(template, context).strip()
+
+    owner, repo = repository.split("/", 1)
+    request(
+        "POST",
+        f"{api_url}/repos/{owner}/{repo}/issues/{pr['number']}/comments",
+        token,
+        {"body": f"{MARKER}\n{message}"},
+    )
+    result["comment-created"] = "true"
+    return result
+
+
 def main() -> int:
     token = os.environ.get("FIRST_MERGED_PR_GITHUB_TOKEN", "")
     template = os.environ.get("FIRST_MERGED_PR_MESSAGE_TEMPLATE", "")
@@ -150,59 +238,32 @@ def main() -> int:
             token,
         )
 
-    write_output("contributor-login", str(pr["user"]["login"]))
-    write_output("pull-request-number", str(pr["number"]))
-
-    if not pr.get("merged") or pr.get("user", {}).get("type") == "Bot":
-        write_output("is-first-merged", "false")
-        write_output("comment-created", "false")
-        print("Pull request is not a merged human contribution; skipping.")
-        return 0
-
-    login = str(pr["user"]["login"])
-    closed_at = str(pr["closed_at"])
-    query = first_merged_query(repository, login, closed_at)
-    encoded_query = urllib.parse.urlencode({"q": query, "per_page": 2})
-    search = api_request("GET", f"{api_url}/search/issues?{encoded_query}", token)
-    total_count = int(search["total_count"])
-
-    if total_count != 1:
-        write_output("is-first-merged", "false")
-        write_output("comment-created", "false")
-        print(
-            f"PR #{pr['number']} is not the contributor's first merged pull request; "
-            f"found {total_count} merged pull requests up to this one."
-        )
-        return 0
-
-    write_output("is-first-merged", "true")
-
-    owner, repo = repository.split("/", 1)
-    comments = api_request(
-        "GET",
-        f"{api_url}/repos/{owner}/{repo}/issues/{pr['number']}/comments?per_page=100",
-        token,
-    )
-    if any(MARKER in str(comment.get("body") or "") for comment in comments):
-        write_output("comment-created", "false")
-        print(f"PR #{pr['number']} already has a first-merged comment; skipping.")
-        return 0
-
-    context = build_context(
+    result = process_pull_request(
         pr=pr,
         repository=repository,
-        server_url=server_url,
+        token=token,
         api_url=api_url,
+        server_url=server_url,
+        template=template,
     )
-    message = render_template(template, context).strip()
-    api_request(
-        "POST",
-        f"{api_url}/repos/{owner}/{repo}/issues/{pr['number']}/comments",
-        token,
-        {"body": f"{MARKER}\n{message}"},
-    )
-    write_output("comment-created", "true")
-    print(f"Created first-merged contribution comment on PR #{pr['number']}.")
+    for name, value in result.items():
+        write_output(name, value)
+
+    if result["comment-created"] == "true":
+        print(
+            f"Created first-merged contribution comment on "
+            f"PR #{result['pull-request-number']}."
+        )
+    elif result["is-first-merged"] == "true":
+        print(
+            f"PR #{result['pull-request-number']} already has a "
+            "first-merged contribution comment; skipping."
+        )
+    else:
+        print(
+            f"PR #{result['pull-request-number']} is not the contributor's "
+            "first merged pull request; skipping."
+        )
     return 0
 
 
