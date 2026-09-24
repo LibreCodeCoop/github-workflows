@@ -1,8 +1,0 @@
-{
-  "name": "Block unconventional commits",
-  "description": "Require pull request commits to follow the Conventional Commits format.",
-  "iconName": "octicon git-commit",
-  "categories": [
-    "Code Review"
-  ]
-}
