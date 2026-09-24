@@ -1,5 +1,0 @@
-{
-  "name": "REUSE compliance check",
-  "description": "Check SPDX headers and licensing metadata for REUSE compliance.",
-  "iconName": "octicon verified"
-}
